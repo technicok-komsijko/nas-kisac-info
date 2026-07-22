@@ -296,17 +296,23 @@
   <main id="publicView">
 
     <div class="ask-card">
-      <label for="askInput">Postavite pitanje</label>
+      <label for="askInput">Pretraga informacija</label>
       <div class="ask-row">
         <input type="text" id="askInput" placeholder="npr. Kad radi ambulanta?" autocomplete="off">
-        <button class="btn btn-primary" id="askBtn">Pitaj</button>
+        <button class="btn btn-primary" id="askBtn">Pretraži</button>
       </div>
       <div class="chips" id="chipRow"></div>
     </div>
 
-    <div id="answerArea"></div>
+    <div class="board-title">
+      <h2>Sve informacije</h2>
+      <span id="boardStatusLabel">pregledajte ili pretražite iznad</span>
+    </div>
+    <div class="board" id="boardArea">
+      <div class="loading">Učitavanje…</div>
+    </div>
 
-    <div style="text-align:center; margin:-6px 0 20px;">
+    <div style="text-align:center; margin:20px 0 20px;">
       <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">⚠ Radovi i isključenja</button>
     </div>
 
@@ -366,14 +372,6 @@
         </div>
         <div id="oglasiFullList"></div>
       </div>
-    </div>
-
-    <div class="board-title">
-      <h2>Oglasna tabla</h2>
-      <span>sve informacije na jednom mestu</span>
-    </div>
-    <div class="board" id="boardArea">
-      <div class="loading">Učitavanje…</div>
     </div>
 
     <a href="https://www.cognitoforms.com/mojpomo%C4%87nik/mojpomo%C4%87nikprijavazatestiranje3" target="_blank" rel="noopener" class="promo-bar">
@@ -677,32 +675,69 @@ function renderChips(){
     const btn = document.createElement('button');
     btn.className = 'chip';
     btn.textContent = cat;
-    btn.onclick = ()=>{ document.getElementById('askInput').value = item.question; askQuestion(item.question); };
+    btn.onclick = ()=>{ document.getElementById('askInput').value = item.question; renderBoard(); document.getElementById('boardArea').scrollIntoView({behavior:'smooth', block:'start'}); };
     row.appendChild(btn);
   });
 }
 
 // ---------- public: board ----------
 function renderBoard(){
+  const rawQuery = document.getElementById('askInput') ? document.getElementById('askInput').value : '';
   const board = document.getElementById('boardArea');
+  const statusLabel = document.getElementById('boardStatusLabel');
+
   if(faqItems.length === 0){
     board.innerHTML = '<div class="empty-msg">Informacije se unose, molimo vas da sačekate ako nema određene koje vas zanimaju.</div>';
     return;
   }
-  const byCat = {};
-  faqItems.forEach(i=>{ (byCat[i.category] = byCat[i.category]||[]).push(i); });
-  board.innerHTML = '';
-  Object.keys(byCat).forEach(cat=>{
-    const group = document.createElement('div');
-    group.className = 'board-group';
-    const h = document.createElement('h3');
-    h.textContent = cat;
-    group.appendChild(h);
-    byCat[cat].forEach((item, idx)=>{
-      group.appendChild(makeNote(item, idx%2===1));
+
+  const q = normalize(rawQuery);
+
+  // Prazna pretraga: prikaži sve, grupisano po kategoriji
+  if(!q){
+    if(statusLabel) statusLabel.textContent = 'pregledajte ili pretražite iznad';
+    const byCat = {};
+    faqItems.forEach(i=>{ (byCat[i.category] = byCat[i.category]||[]).push(i); });
+    board.innerHTML = '';
+    Object.keys(byCat).forEach(cat=>{
+      const group = document.createElement('div');
+      group.className = 'board-group';
+      const h = document.createElement('h3');
+      h.textContent = cat;
+      group.appendChild(h);
+      byCat[cat].forEach((item, idx)=>{
+        group.appendChild(makeNote(item, idx%2===1));
+      });
+      board.appendChild(group);
     });
-    board.appendChild(group);
-  });
+    return;
+  }
+
+  // Pretraga: filtriraj i prikaži samo poklapanja
+  const scored = faqItems.map(i=>({item:i, score:scoreItem(q,i)}))
+    .filter(x=>x.score > 0)
+    .sort((a,b)=>b.score-a.score);
+
+  if(scored.length === 0){
+    if(statusLabel) statusLabel.textContent = 'nema rezultata';
+    board.innerHTML = `<div class="empty-msg">Nije pronađen odgovor na to pitanje. Pokušajte drugim rečima, ili se obratite kancelariji MZ Kisač direktno.</div>`;
+    scheduleUnansweredLog(rawQuery);
+    return;
+  }
+  if(statusLabel) statusLabel.textContent = scored.length + (scored.length===1 ? ' rezultat' : ' rezultata');
+  board.innerHTML = '';
+  scored.forEach((x,idx)=> board.appendChild(makeNote(x.item, idx%2===1)) );
+}
+let unansweredLogTimer = null;
+function scheduleUnansweredLog(rawQuery){
+  clearTimeout(unansweredLogTimer);
+  const text = rawQuery.trim();
+  if(text.length < 3) return;
+  unansweredLogTimer = setTimeout(()=>{
+    // Loguj samo ako korisnik u međuvremenu nije promenio tekst
+    const current = document.getElementById('askInput').value.trim();
+    if(current === text) logUnanswered(text);
+  }, 1500);
 }
 function isExpired(item){
   if(!item.validUntil) return false;
@@ -741,24 +776,6 @@ function scoreItem(queryNorm, item){
   });
   if(hay.includes(queryNorm) && queryNorm.length > 3) score += 3;
   return score;
-}
-function askQuestion(rawQuery){
-  const area = document.getElementById('answerArea');
-  const q = normalize(rawQuery);
-  if(!q){ area.innerHTML=''; return; }
-
-  const scored = faqItems.map(i=>({item:i, score:scoreItem(q,i)}))
-    .filter(x=>x.score > 0)
-    .sort((a,b)=>b.score-a.score);
-
-  area.innerHTML = '';
-  if(scored.length === 0){
-    area.innerHTML = `<div class="empty-msg">Nisam našao odgovor na to pitanje. Pokušajte drugim rečima, ili se obratite kancelariji MZ Kisač direktno.</div>`;
-    logUnanswered(rawQuery.trim());
-    return;
-  }
-  const top = scored.slice(0,2);
-  top.forEach((x,idx)=> area.appendChild(makeNote(x.item, idx===1)) );
 }
 
 // ---------- admin: pin gate ----------
@@ -1033,8 +1050,9 @@ function renderAccessLog(){
 }
 
 // ---------- events ----------
-document.getElementById('askBtn').onclick = ()=> askQuestion(document.getElementById('askInput').value);
-document.getElementById('askInput').addEventListener('keydown', e=>{ if(e.key==='Enter') askQuestion(e.target.value); });
+document.getElementById('askBtn').onclick = ()=> renderBoard();
+document.getElementById('askInput').addEventListener('input', ()=> renderBoard());
+document.getElementById('askInput').addEventListener('keydown', e=>{ if(e.key==='Enter') e.target.blur(); });
 
 document.getElementById('oglasInput').addEventListener('input', e=>{
   document.getElementById('oglasCount').textContent = (200 - e.target.value.length) + ' karaktera preostalo';
