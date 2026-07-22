@@ -434,6 +434,10 @@
       <h2 style="font-size:1.05rem; margin-bottom:10px;">Postojeće informacije</h2>
       <div id="adminList"></div>
 
+      <h2 style="font-size:1.05rem; margin:26px 0 10px;">Mali oglasi</h2>
+      <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Aktivni oglasi koje su meštani sami objavili — ovde možeš da ih obrišeš pre isteka ako treba.</p>
+      <div id="adminOglasiList"></div>
+
       <h2 style="font-size:1.05rem; margin:26px 0 10px;">Predlozi meštana</h2>
       <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Poruke koje su meštani namerno poslali o tome šta im nedostaje.</p>
       <div id="predloziList"></div>
@@ -766,6 +770,8 @@ async function unlockAdmin(){
     document.getElementById('pinScreen').classList.add('hidden');
     document.getElementById('adminPanel').classList.remove('hidden');
     renderAdminList();
+    await loadOglasi();
+    renderAdminOglasi();
     await loadPredlozi();
     renderPredlozi();
     await loadUnanswered();
@@ -864,6 +870,38 @@ function renderAdminList(){
     if(item) fillFormForEdit(item);
   });
   list.querySelectorAll('[data-del]').forEach(b=>b.onclick = ()=> deleteEntry(b.dataset.del));
+}
+
+function renderAdminOglasi(){
+  const list = document.getElementById('adminOglasiList');
+  pruneOglasi();
+  if(oglasi.length===0){
+    list.innerHTML = '<div class="empty-msg">Trenutno nema aktivnih oglasa.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  oglasi.slice().sort((a,b)=>b.time-a.time).forEach(item=>{
+    const row = document.createElement('div');
+    row.className = 'admin-item';
+    const timeStr = new Date(item.time).toLocaleString('sr-RS');
+    row.innerHTML = `
+      <div class="admin-item-body">
+        <div class="note-cat">${timeStr}</div>
+        <div class="note-q">${escapeHtml(item.text)}</div>
+        <div class="note-a">${escapeHtml(item.phone)}</div>
+      </div>
+      <div class="admin-item-actions">
+        <button class="btn btn-danger btn-small" data-delo="${item.id}">Obriši</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('[data-delo]').forEach(b=>b.onclick = async ()=>{
+    oglasi = oglasi.filter(o=>o.id!==b.dataset.delo);
+    await saveOglasi();
+    renderAdminOglasi();
+    renderTicker();
+  });
 }
 
 function renderUnanswered(){
