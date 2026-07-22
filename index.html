@@ -424,6 +424,10 @@
           <label for="fKeywords">Dodatne ključne reči (odvojene zarezom, opciono)</label>
           <input type="text" id="fKeywords" placeholder="npr. doktor, lekar, dom zdravlja">
         </div>
+        <div class="field">
+          <label for="fValidUntil">Važi do (opciono — za privremene informacije, npr. nedeljni raspored)</label>
+          <input type="date" id="fValidUntil">
+        </div>
         <div class="form-actions">
           <button class="btn btn-primary" id="saveEntryBtn">Sačuvaj</button>
           <button class="btn btn-ghost hidden" id="cancelEditBtn">Otkaži izmenu</button>
@@ -700,12 +704,21 @@ function renderBoard(){
     board.appendChild(group);
   });
 }
+function isExpired(item){
+  if(!item.validUntil) return false;
+  const today = new Date().toISOString().slice(0,10);
+  return item.validUntil < today;
+}
 function makeNote(item, alt){
   const note = document.createElement('div');
   note.className = 'note' + (alt ? ' alt' : '');
+  const warning = isExpired(item)
+    ? `<div style="color:var(--brick); font-size:0.78rem; font-weight:700; margin-bottom:4px;">⚠ Možda zastarelo — proverite kod MZ</div>`
+    : '';
   note.innerHTML = `
     <div class="pin"></div>
     <div class="note-cat">${escapeHtml(item.category)}</div>
+    ${warning}
     <div class="note-q">${escapeHtml(item.question)}</div>
     <div class="note-a">${escapeHtml(item.answer)}</div>
   `;
@@ -790,6 +803,7 @@ function resetForm(){
   document.getElementById('fCategory').value = 'Radno vreme';
   document.getElementById('fAnswer').value = '';
   document.getElementById('fKeywords').value = '';
+  document.getElementById('fValidUntil').value = '';
   document.getElementById('cancelEditBtn').classList.add('hidden');
 }
 function fillFormForEdit(item){
@@ -799,6 +813,7 @@ function fillFormForEdit(item){
   document.getElementById('fCategory').value = item.category;
   document.getElementById('fAnswer').value = item.answer;
   document.getElementById('fKeywords').value = item.keywords || '';
+  document.getElementById('fValidUntil').value = item.validUntil || '';
   document.getElementById('cancelEditBtn').classList.remove('hidden');
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -807,6 +822,7 @@ async function saveEntry(){
   const answer = document.getElementById('fAnswer').value.trim();
   const category = document.getElementById('fCategory').value;
   const keywords = document.getElementById('fKeywords').value.trim();
+  const validUntil = document.getElementById('fValidUntil').value;
   const statusEl = document.getElementById('adminStatus');
 
   if(!question || !answer){
@@ -816,9 +832,9 @@ async function saveEntry(){
   }
   if(editingId){
     const idx = faqItems.findIndex(i=>i.id===editingId);
-    if(idx>-1) faqItems[idx] = {...faqItems[idx], question, answer, category, keywords};
+    if(idx>-1) faqItems[idx] = {...faqItems[idx], question, answer, category, keywords, validUntil};
   }else{
-    faqItems.push({id:uid(), question, answer, category, keywords, updated:Date.now()});
+    faqItems.push({id:uid(), question, answer, category, keywords, validUntil, updated:Date.now()});
   }
   statusEl.textContent = 'Čuvanje…';
   statusEl.className = 'status-msg';
@@ -852,11 +868,15 @@ function renderAdminList(){
   faqItems.slice().sort((a,b)=>a.category.localeCompare(b.category)).forEach(item=>{
     const row = document.createElement('div');
     row.className = 'admin-item';
+    const validLine = item.validUntil
+      ? `<div style="font-size:0.75rem; margin-top:3px; color:${isExpired(item) ? 'var(--brick)' : 'var(--soil-soft)'};">${isExpired(item) ? '⚠ Isteklo' : 'Važi do'} ${item.validUntil}</div>`
+      : '';
     row.innerHTML = `
       <div class="admin-item-body">
         <div class="note-cat">${escapeHtml(item.category)}</div>
         <div class="note-q">${escapeHtml(item.question)}</div>
         <div class="note-a">${escapeHtml(item.answer)}</div>
+        ${validLine}
       </div>
       <div class="admin-item-actions">
         <button class="btn btn-ghost btn-small" data-edit="${item.id}">Izmeni</button>
