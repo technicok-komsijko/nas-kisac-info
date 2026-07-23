@@ -47,20 +47,7 @@
   header h1{font-size:1.5rem; font-weight:700; line-height:1.15;}
   header p{margin:2px 0 0; color:var(--soil-soft); font-size:0.92rem;}
 
-  #adminToggleBtn{
-    border:1px solid var(--soil-soft);
-    background:transparent;
-    color:var(--soil-soft);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:0.72rem;
-    letter-spacing:0.03em;
-    padding:7px 12px;
-    border-radius:999px;
-    cursor:pointer;
-    white-space:nowrap;
-    transition:all .15s ease;
-  }
-  #adminToggleBtn:hover{background:var(--soil); color:var(--paper); border-color:var(--soil);}
+  #adminToggleBtn:hover{ color:var(--soil); }
 
   .hidden{display:none !important;}
 
@@ -306,7 +293,6 @@
         <p>Pitajte šta vas zanima — radno vreme, kontakti, obaveštenja</p>
       </div>
     </div>
-    <button id="adminToggleBtn">Unos podataka</button>
   </header>
 
   <!-- ================= PUBLIC VIEW ================= -->
@@ -431,7 +417,7 @@
       <div class="promo-text">Ovaj alat je deo tima koji razvija <strong>Moj pomoćnik</strong> — AI asistenta koji povezuje meštane sa uslugama, majstorima i lokalnim proizvođačima. Prijavite se da testirate.</div>
     </a>
 
-    <footer>Naš Kisač info · informacije se unose, molimo vas da sačekate ako nema određene koje vas zanimaju</footer>
+    <footer>Naš Kisač info · informacije se unose, molimo vas da sačekate ako nema određene koje vas zanimaju<br><span id="adminToggleBtn" style="cursor:pointer; color:var(--soil-soft); text-decoration:underline; font-size:0.72rem;">unos podataka</span></footer>
   </main>
 
   <!-- ================= ADMIN VIEW ================= -->
