@@ -230,30 +230,47 @@
     box-shadow:0 3px 0 var(--cream-dark);
   }
   .ticker-inner{
-    height:58px;
-    display:flex;
-    align-items:center;
+    height:168px;
     padding:0 16px;
     position:relative;
+    overflow:hidden;
   }
-  .ticker-inner .ticker-item{
-    width:100%;
-    transition:transform 0.5s ease, opacity 0.5s ease;
+  .ticker-track{
+    display:flex;
+    flex-direction:column;
   }
-  .ticker-inner .ticker-item .t-text{
+  .ticker-track.animate{
+    animation-name:tickerScroll;
+    animation-timing-function:linear;
+    animation-iteration-count:infinite;
+  }
+  @keyframes tickerScroll{
+    from{ transform:translateY(0); }
+    to{ transform:translateY(-50%); }
+  }
+  .ticker-item{
+    height:56px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    border-bottom:1px dashed var(--cream-dark);
+    flex-shrink:0;
+  }
+  .ticker-item:last-child{ border-bottom:none; }
+  .ticker-item .t-text{
     font-size:0.94rem; font-weight:600; color:var(--soil);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .ticker-inner .ticker-item .t-phone{
+  .ticker-item .t-phone{
     font-size:0.78rem; color:var(--soil-soft); font-family:'IBM Plex Mono', monospace;
   }
-  .ticker-empty{color:var(--soil-soft); font-size:0.88rem;}
+  .ticker-empty{color:var(--soil-soft); font-size:0.88rem; padding-top:16px;}
   .ticker-hint{
     text-align:right; font-size:0.68rem; color:var(--soil-soft);
     padding:3px 14px 6px; font-family:'IBM Plex Mono', monospace; letter-spacing:0.03em;
   }
   @media (prefers-reduced-motion: reduce){
-    .ticker-inner .ticker-item{ transition:none; }
+    .ticker-track.animate{ animation:none; }
   }
 
   .oglasi-overlay{
@@ -679,8 +696,6 @@ function upcomingDogadjaji(){
 const OGLASI_KEY = 'kisac-oglasi';
 const OGLAS_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 let oglasi = [];
-let tickerIdx = 0;
-let tickerTimer = null;
 
 async function loadOglasi(){
   try{
@@ -710,32 +725,43 @@ function sortedOglasi(){
 function renderTicker(){
   const list = sortedOglasi();
   const inner = document.getElementById('tickerInner');
-  if(tickerTimer){ clearInterval(tickerTimer); tickerTimer = null; }
+  inner.innerHTML = '';
+
   if(list.length === 0){
     inner.innerHTML = '<div class="ticker-empty">Trenutno nema malih oglasa.</div>';
     return;
   }
-  tickerIdx = 0;
-  showTickerItem(list, tickerIdx);
-  if(list.length > 1){
-    tickerTimer = setInterval(()=>{
-      tickerIdx = (tickerIdx + 1) % list.length;
-      showTickerItem(list, tickerIdx);
-    }, 4000);
+  if(list.length === 1){
+    inner.appendChild(buildTickerItem(list[0]));
+    return;
   }
+
+  const track = document.createElement('div');
+  track.className = 'ticker-track';
+  const duration = Math.max(list.length * 4, 8);
+  track.style.animationDuration = duration + 's';
+  // Lista se udvostručuje radi neprekidnog (bešavnog) kruženja
+  list.concat(list).forEach(o => track.appendChild(buildTickerItem(o)));
+  inner.appendChild(track);
+  requestAnimationFrame(()=> track.classList.add('animate'));
 }
-function showTickerItem(list, idx){
-  const inner = document.getElementById('tickerInner');
-  const o = list[idx];
-  inner.innerHTML = `
-    <div class="ticker-item">
-      <div class="t-text">${escapeHtml(o.text)}</div>
-      <div class="t-phone">${escapeHtml(o.phone)}</div>
-    </div>
+function buildTickerItem(o){
+  const div = document.createElement('div');
+  div.className = 'ticker-item';
+  div.innerHTML = `
+    <div class="t-text">${escapeHtml(o.text)}</div>
+    <div class="t-phone">${escapeHtml(o.phone)}</div>
   `;
+  return div;
 }
-function pauseTicker(){ if(tickerTimer){ clearInterval(tickerTimer); tickerTimer = null; } }
-function resumeTicker(){ renderTicker(); }
+function pauseTicker(){
+  const track = document.querySelector('#tickerInner .ticker-track');
+  if(track) track.style.animationPlayState = 'paused';
+}
+function resumeTicker(){
+  const track = document.querySelector('#tickerInner .ticker-track');
+  if(track) track.style.animationPlayState = 'running';
+}
 
 function openOglasiDrawer(){
   const list = sortedOglasi();
