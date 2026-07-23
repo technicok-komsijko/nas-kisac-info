@@ -561,11 +561,11 @@ async function binGetAll(){
     const res = await fetch(JSONBIN_BASE + '/latest', {
       headers: { 'X-Access-Key': JSONBIN_ACCESS_KEY }
     });
-    if(!res.ok) return {};
+    if(!res.ok) return null; // neuspeh - NE vraćati prazan objekat, da se ne bi greškom obrisali podaci
     const data = await res.json();
     return (data && data.record) ? data.record : {};
   }catch(e){
-    return {};
+    return null; // mrežna greška ili slično - signaliziraj neuspeh
   }
 }
 async function binSetAll(obj){
@@ -582,6 +582,10 @@ async function binSetAll(obj){
 }
 async function binUpdateKey(key, value){
   const all = await binGetAll();
+  if(all === null){
+    // Čitanje trenutnog stanja baze nije uspelo — NE prepisuj bazu, da se ne bi obrisali ostali podaci
+    return false;
+  }
   all[key] = value;
   return await binSetAll(all);
 }
