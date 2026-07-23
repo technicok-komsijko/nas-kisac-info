@@ -295,6 +295,13 @@
   <!-- ================= PUBLIC VIEW ================= -->
   <main id="publicView">
 
+    <div id="tickerWindow" class="ticker-window" role="button" tabindex="0" aria-label="Otvori sve male oglase">
+      <div class="ticker-inner" id="tickerInner">
+        <div class="ticker-empty">Trenutno nema malih oglasa.</div>
+      </div>
+      <div class="ticker-hint">dodirni za sve oglase</div>
+    </div>
+
     <div class="ask-card">
       <label for="askInput">Pretraga informacija</label>
       <div class="ask-row">
@@ -304,18 +311,31 @@
       <div class="chips" id="chipRow"></div>
     </div>
 
-    <div class="board-title">
-      <h2>Sve informacije</h2>
-      <span id="boardStatusLabel">pregledajte ili pretražite iznad</span>
-    </div>
-    <div class="board" id="boardArea">
-      <div class="loading">Učitavanje…</div>
+    <div id="searchResultsWrap" class="hidden">
+      <div class="board-title">
+        <h2>Sve informacije</h2>
+        <span id="boardStatusLabel">pregledajte ili pretražite iznad</span>
+      </div>
+      <div class="board" id="boardArea">
+        <div class="loading">Učitavanje…</div>
+      </div>
     </div>
 
     <div style="text-align:center; margin:20px 0 20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+      <button id="listaBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">📋 Lista informacija</button>
       <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">⚠ Radovi i isključenja</button>
       <button id="telefoniBtn" class="btn btn-ghost" style="border-color:var(--sky); color:var(--sky);">📞 Važni telefoni</button>
       <button id="dogadjajiBtn" class="btn btn-ghost" style="border-color:var(--leaf); color:var(--leaf);">🎭 Kulturni događaji</button>
+    </div>
+
+    <div id="listaOverlay" class="oglasi-overlay hidden">
+      <div class="oglasi-drawer">
+        <div class="oglasi-drawer-head">
+          <h3>Sve informacije</h3>
+          <button id="closeListaBtn" class="btn btn-ghost btn-small">Zatvori</button>
+        </div>
+        <div id="listaList"></div>
+      </div>
     </div>
 
     <div id="dogadjajiOverlay" class="oglasi-overlay hidden">
@@ -377,13 +397,6 @@
         <button class="btn btn-primary" id="oglasBtn">Objavi</button>
       </div>
       <div id="oglasCount" style="text-align:right; font-size:0.75rem; color:var(--soil-soft); margin-top:5px;">200 karaktera preostalo</div>
-    </div>
-
-    <div id="tickerWindow" class="ticker-window" role="button" tabindex="0" aria-label="Otvori sve male oglase">
-      <div class="ticker-inner" id="tickerInner">
-        <div class="ticker-empty">Trenutno nema malih oglasa.</div>
-      </div>
-      <div class="ticker-hint">dodirni za sve oglase</div>
     </div>
 
     <div id="oglasiOverlay" class="oglasi-overlay hidden">
@@ -768,35 +781,51 @@ function renderChips(){
 }
 
 // ---------- public: board ----------
+function renderGroupedInto(container){
+  const byCat = {};
+  faqItems.forEach(i=>{ (byCat[i.category] = byCat[i.category]||[]).push(i); });
+  container.innerHTML = '';
+  Object.keys(byCat).forEach(cat=>{
+    const group = document.createElement('div');
+    group.className = 'board-group';
+    const h = document.createElement('h3');
+    h.textContent = cat;
+    group.appendChild(h);
+    byCat[cat].forEach((item, idx)=>{
+      group.appendChild(makeNote(item, idx%2===1));
+    });
+    container.appendChild(group);
+  });
+}
+function openListaDrawer(){
+  const el = document.getElementById('listaList');
+  if(faqItems.length === 0){
+    el.innerHTML = '<div class="empty-msg">Informacije se unose, molimo vas da sačekate ako nema određene koje vas zanimaju.</div>';
+  }else{
+    renderGroupedInto(el);
+  }
+  document.getElementById('listaOverlay').classList.remove('hidden');
+}
+function closeListaDrawer(){
+  document.getElementById('listaOverlay').classList.add('hidden');
+}
 function renderBoard(){
   const rawQuery = document.getElementById('askInput') ? document.getElementById('askInput').value : '';
+  const wrap = document.getElementById('searchResultsWrap');
   const board = document.getElementById('boardArea');
   const statusLabel = document.getElementById('boardStatusLabel');
 
-  if(faqItems.length === 0){
-    board.innerHTML = '<div class="empty-msg">Informacije se unose, molimo vas da sačekate ako nema određene koje vas zanimaju.</div>';
-    return;
-  }
-
   const q = normalize(rawQuery);
 
-  // Prazna pretraga: prikaži sve, grupisano po kategoriji
+  // Prazna pretraga: sakrij rezultate, preporuči dugme "Lista informacija"
   if(!q){
-    if(statusLabel) statusLabel.textContent = 'pregledajte ili pretražite iznad';
-    const byCat = {};
-    faqItems.forEach(i=>{ (byCat[i.category] = byCat[i.category]||[]).push(i); });
-    board.innerHTML = '';
-    Object.keys(byCat).forEach(cat=>{
-      const group = document.createElement('div');
-      group.className = 'board-group';
-      const h = document.createElement('h3');
-      h.textContent = cat;
-      group.appendChild(h);
-      byCat[cat].forEach((item, idx)=>{
-        group.appendChild(makeNote(item, idx%2===1));
-      });
-      board.appendChild(group);
-    });
+    wrap.classList.add('hidden');
+    return;
+  }
+  wrap.classList.remove('hidden');
+
+  if(faqItems.length === 0){
+    board.innerHTML = '<div class="empty-msg">Informacije se unose, molimo vas da sačekate ako nema određene koje vas zanimaju.</div>';
     return;
   }
 
@@ -1342,6 +1371,12 @@ document.getElementById('oglasiOverlay').addEventListener('click', e=>{
 });
 document.getElementById('adminToggleBtn').onclick = showAdminGate;
 document.getElementById('pinCancel').onclick = showPublic;
+
+document.getElementById('listaBtn').onclick = openListaDrawer;
+document.getElementById('closeListaBtn').onclick = closeListaDrawer;
+document.getElementById('listaOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'listaOverlay') closeListaDrawer();
+});
 
 document.getElementById('hitnoBtn').onclick = openHitnoDrawer;
 document.getElementById('closeHitnoBtn').onclick = closeHitnoDrawer;
