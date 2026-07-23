@@ -312,8 +312,9 @@
       <div class="loading">Učitavanje…</div>
     </div>
 
-    <div style="text-align:center; margin:20px 0 20px;">
+    <div style="text-align:center; margin:20px 0 20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
       <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">⚠ Radovi i isključenja</button>
+      <button id="telefoniBtn" class="btn btn-ghost" style="border-color:var(--sky); color:var(--sky);">📞 Važni telefoni</button>
     </div>
 
     <div id="hitnoOverlay" class="oglasi-overlay hidden">
@@ -323,6 +324,16 @@
           <button id="closeHitnoBtn" class="btn btn-ghost btn-small">Zatvori</button>
         </div>
         <div id="hitnoList"></div>
+      </div>
+    </div>
+
+    <div id="telefoniOverlay" class="oglasi-overlay hidden">
+      <div class="oglasi-drawer">
+        <div class="oglasi-drawer-head">
+          <h3>Važni telefoni</h3>
+          <button id="closeTelefoniBtn" class="btn btn-ghost btn-small">Zatvori</button>
+        </div>
+        <div id="telefoniList"></div>
       </div>
     </div>
 
@@ -410,6 +421,7 @@
             <option>Kontakt</option>
             <option>Odvoz smeća</option>
             <option>Radovi i isključenja</option>
+            <option>Važni telefoni</option>
             <option>Obaveštenje</option>
             <option>Ostalo</option>
           </select>
@@ -417,6 +429,10 @@
         <div class="field">
           <label for="fAnswer">Odgovor</label>
           <textarea id="fAnswer" placeholder="Napišite odgovor koji će meštani videti"></textarea>
+        </div>
+        <div class="field">
+          <label for="fPhone">Telefon (opciono — prikazuje se kao dugme za pozivanje)</label>
+          <input type="tel" id="fPhone" placeholder="npr. 021/827-063">
         </div>
         <div class="field">
           <label for="fKeywords">Dodatne ključne reči (odvojene zarezom, opciono)</label>
@@ -750,12 +766,16 @@ function makeNote(item, alt){
   const warning = isExpired(item)
     ? `<div style="color:var(--brick); font-size:0.78rem; font-weight:700; margin-bottom:4px;">⚠ Možda zastarelo — proverite kod MZ</div>`
     : '';
+  const phoneLink = item.phone
+    ? `<a href="tel:${escapeHtml(item.phone.replace(/\s+/g,''))}" style="display:inline-block; margin-top:8px; padding:6px 14px; background:var(--sky); color:var(--paper); border-radius:999px; text-decoration:none; font-weight:700; font-size:0.85rem;">📞 ${escapeHtml(item.phone)}</a>`
+    : '';
   note.innerHTML = `
     <div class="pin"></div>
     <div class="note-cat">${escapeHtml(item.category)}</div>
     ${warning}
     <div class="note-q">${escapeHtml(item.question)}</div>
     <div class="note-a">${escapeHtml(item.answer)}</div>
+    ${phoneLink}
   `;
   return note;
 }
@@ -819,6 +839,7 @@ function resetForm(){
   document.getElementById('fQuestion').value = '';
   document.getElementById('fCategory').value = 'Radno vreme';
   document.getElementById('fAnswer').value = '';
+  document.getElementById('fPhone').value = '';
   document.getElementById('fKeywords').value = '';
   document.getElementById('fValidUntil').value = '';
   document.getElementById('cancelEditBtn').classList.add('hidden');
@@ -829,6 +850,7 @@ function fillFormForEdit(item){
   document.getElementById('fQuestion').value = item.question;
   document.getElementById('fCategory').value = item.category;
   document.getElementById('fAnswer').value = item.answer;
+  document.getElementById('fPhone').value = item.phone || '';
   document.getElementById('fKeywords').value = item.keywords || '';
   document.getElementById('fValidUntil').value = item.validUntil || '';
   document.getElementById('cancelEditBtn').classList.remove('hidden');
@@ -838,6 +860,7 @@ async function saveEntry(){
   const question = document.getElementById('fQuestion').value.trim();
   const answer = document.getElementById('fAnswer').value.trim();
   const category = document.getElementById('fCategory').value;
+  const phone = document.getElementById('fPhone').value.trim();
   const keywords = document.getElementById('fKeywords').value.trim();
   const validUntil = document.getElementById('fValidUntil').value;
   const statusEl = document.getElementById('adminStatus');
@@ -849,9 +872,9 @@ async function saveEntry(){
   }
   if(editingId){
     const idx = faqItems.findIndex(i=>i.id===editingId);
-    if(idx>-1) faqItems[idx] = {...faqItems[idx], question, answer, category, keywords, validUntil};
+    if(idx>-1) faqItems[idx] = {...faqItems[idx], question, answer, category, phone, keywords, validUntil};
   }else{
-    faqItems.push({id:uid(), question, answer, category, keywords, validUntil, updated:Date.now()});
+    faqItems.push({id:uid(), question, answer, category, phone, keywords, validUntil, updated:Date.now()});
   }
   statusEl.textContent = 'Čuvanje…';
   statusEl.className = 'status-msg';
@@ -888,11 +911,15 @@ function renderAdminList(){
     const validLine = item.validUntil
       ? `<div style="font-size:0.75rem; margin-top:3px; color:${isExpired(item) ? 'var(--brick)' : 'var(--soil-soft)'};">${isExpired(item) ? '⚠ Isteklo' : 'Važi do'} ${item.validUntil}</div>`
       : '';
+    const phoneLine = item.phone
+      ? `<div style="font-size:0.8rem; margin-top:3px; font-family:'IBM Plex Mono', monospace; color:var(--sky);">📞 ${escapeHtml(item.phone)}</div>`
+      : '';
     row.innerHTML = `
       <div class="admin-item-body">
         <div class="note-cat">${escapeHtml(item.category)}</div>
         <div class="note-q">${escapeHtml(item.question)}</div>
         <div class="note-a">${escapeHtml(item.answer)}</div>
+        ${phoneLine}
         ${validLine}
       </div>
       <div class="admin-item-actions">
@@ -1030,6 +1057,20 @@ function openHitnoDrawer(){
 function closeHitnoDrawer(){
   document.getElementById('hitnoOverlay').classList.add('hidden');
 }
+function openTelefoniDrawer(){
+  const items = faqItems.filter(i=>i.category==='Važni telefoni').sort((a,b)=>a.question.localeCompare(b.question));
+  const el = document.getElementById('telefoniList');
+  if(items.length===0){
+    el.innerHTML = '<div class="empty-msg">Trenutno nema unetih važnih telefona.</div>';
+  }else{
+    el.innerHTML = '';
+    items.forEach((item,idx)=> el.appendChild(makeNote(item, idx%2===1)) );
+  }
+  document.getElementById('telefoniOverlay').classList.remove('hidden');
+}
+function closeTelefoniDrawer(){
+  document.getElementById('telefoniOverlay').classList.add('hidden');
+}
 function renderAccessLog(){
   const el = document.getElementById('accessLogList');
   if(accessLog.length===0){
@@ -1112,6 +1153,12 @@ document.getElementById('hitnoBtn').onclick = openHitnoDrawer;
 document.getElementById('closeHitnoBtn').onclick = closeHitnoDrawer;
 document.getElementById('hitnoOverlay').addEventListener('click', e=>{
   if(e.target.id === 'hitnoOverlay') closeHitnoDrawer();
+});
+
+document.getElementById('telefoniBtn').onclick = openTelefoniDrawer;
+document.getElementById('closeTelefoniBtn').onclick = closeTelefoniDrawer;
+document.getElementById('telefoniOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'telefoniOverlay') closeTelefoniDrawer();
 });
 
 async function submitPredlog(){
