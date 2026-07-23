@@ -315,6 +315,17 @@
     <div style="text-align:center; margin:20px 0 20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
       <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">⚠ Radovi i isključenja</button>
       <button id="telefoniBtn" class="btn btn-ghost" style="border-color:var(--sky); color:var(--sky);">📞 Važni telefoni</button>
+      <button id="dogadjajiBtn" class="btn btn-ghost" style="border-color:var(--leaf); color:var(--leaf);">🎭 Kulturni događaji</button>
+    </div>
+
+    <div id="dogadjajiOverlay" class="oglasi-overlay hidden">
+      <div class="oglasi-drawer">
+        <div class="oglasi-drawer-head">
+          <h3>Kulturni događaji</h3>
+          <button id="closeDogadjajiBtn" class="btn btn-ghost btn-small">Zatvori</button>
+        </div>
+        <div id="dogadjajiList"></div>
+      </div>
     </div>
 
     <div id="hitnoOverlay" class="oglasi-overlay hidden">
@@ -449,8 +460,40 @@
         <div class="status-msg" id="adminStatus"></div>
       </div>
 
+      <div class="admin-form">
+        <h2 id="dogadjajFormTitle">Dodaj kulturni događaj</h2>
+        <div class="field">
+          <label for="dNaziv">Naziv događaja</label>
+          <input type="text" id="dNaziv" placeholder="npr. Koncert klape na trgu">
+        </div>
+        <div class="field">
+          <label for="dDatum">Datum</label>
+          <input type="date" id="dDatum">
+        </div>
+        <div class="field">
+          <label for="dVreme">Vreme (opciono)</label>
+          <input type="text" id="dVreme" placeholder="npr. 20:00">
+        </div>
+        <div class="field">
+          <label for="dMesto">Mesto (opciono)</label>
+          <input type="text" id="dMesto" placeholder="npr. Dom kulture Kisač">
+        </div>
+        <div class="field">
+          <label for="dOpis">Opis (opciono)</label>
+          <textarea id="dOpis" placeholder="Kratak opis događaja"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="saveDogadjajBtn">Sačuvaj</button>
+          <button class="btn btn-ghost hidden" id="cancelDogadjajEditBtn">Otkaži izmenu</button>
+        </div>
+        <div class="status-msg" id="dogadjajStatus"></div>
+      </div>
+
       <h2 style="font-size:1.05rem; margin-bottom:10px;">Postojeće informacije</h2>
       <div id="adminList"></div>
+
+      <h2 style="font-size:1.05rem; margin:26px 0 10px;">Kulturni događaji</h2>
+      <div id="adminDogadjajiList"></div>
 
       <h2 style="font-size:1.05rem; margin:26px 0 10px;">Mali oglasi</h2>
       <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Aktivni oglasi koje su meštani sami objavili — ovde možeš da ih obrišeš pre isteka ako treba.</p>
@@ -590,6 +633,34 @@ async function saveAccessLog(){
 async function logAccess(success){
   accessLog.push({time:Date.now(), success});
   await saveAccessLog();
+}
+
+const DOGADJAJI_KEY = 'kisac-dogadjaji';
+let dogadjaji = [];
+let editingDogadjajId = null;
+async function loadDogadjaji(){
+  try{
+    const all = await binGetAll();
+    dogadjaji = all[DOGADJAJI_KEY] || [];
+  }catch(e){ dogadjaji = []; }
+}
+async function saveDogadjaji(){
+  try{ await binUpdateKey(DOGADJAJI_KEY, dogadjaji); return true; }catch(e){ return false; }
+}
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function daysUntil(dateStr){
+  const today = new Date(todayStr()+'T00:00:00');
+  const target = new Date(dateStr+'T00:00:00');
+  return Math.round((target - today) / 86400000);
+}
+function eventLabel(days){
+  if(days === 0) return 'Danas';
+  if(days === 1) return 'Sutra';
+  return `za ${days} dana`;
+}
+function upcomingDogadjaji(){
+  const today = todayStr();
+  return dogadjaji.filter(d => d.datum >= today).sort((a,b)=> a.datum.localeCompare(b.datum));
 }
 
 const OGLASI_KEY = 'kisac-oglasi';
@@ -820,6 +891,8 @@ async function unlockAdmin(){
     document.getElementById('pinScreen').classList.add('hidden');
     document.getElementById('adminPanel').classList.remove('hidden');
     renderAdminList();
+    await loadDogadjaji();
+    renderAdminDogadjaji();
     await loadOglasi();
     renderAdminOglasi();
     await loadPredlozi();
@@ -968,6 +1041,95 @@ function renderAdminOglasi(){
   });
 }
 
+function resetDogadjajForm(){
+  editingDogadjajId = null;
+  document.getElementById('dogadjajFormTitle').textContent = 'Dodaj kulturni događaj';
+  document.getElementById('dNaziv').value = '';
+  document.getElementById('dDatum').value = '';
+  document.getElementById('dVreme').value = '';
+  document.getElementById('dMesto').value = '';
+  document.getElementById('dOpis').value = '';
+  document.getElementById('cancelDogadjajEditBtn').classList.add('hidden');
+}
+function fillDogadjajFormForEdit(d){
+  editingDogadjajId = d.id;
+  document.getElementById('dogadjajFormTitle').textContent = 'Izmeni kulturni događaj';
+  document.getElementById('dNaziv').value = d.naziv;
+  document.getElementById('dDatum').value = d.datum;
+  document.getElementById('dVreme').value = d.vreme || '';
+  document.getElementById('dMesto').value = d.mesto || '';
+  document.getElementById('dOpis').value = d.opis || '';
+  document.getElementById('cancelDogadjajEditBtn').classList.remove('hidden');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+async function saveDogadjaj(){
+  const naziv = document.getElementById('dNaziv').value.trim();
+  const datum = document.getElementById('dDatum').value;
+  const vreme = document.getElementById('dVreme').value.trim();
+  const mesto = document.getElementById('dMesto').value.trim();
+  const opis = document.getElementById('dOpis').value.trim();
+  const statusEl = document.getElementById('dogadjajStatus');
+
+  if(!naziv || !datum){
+    statusEl.textContent = 'Unesite naziv i datum događaja.';
+    statusEl.className = 'status-msg err';
+    return;
+  }
+  if(editingDogadjajId){
+    const idx = dogadjaji.findIndex(d=>d.id===editingDogadjajId);
+    if(idx>-1) dogadjaji[idx] = {...dogadjaji[idx], naziv, datum, vreme, mesto, opis};
+  }else{
+    dogadjaji.push({id:uid(), naziv, datum, vreme, mesto, opis});
+  }
+  statusEl.textContent = 'Čuvanje…';
+  statusEl.className = 'status-msg';
+  const ok = await saveDogadjaji();
+  if(ok){
+    statusEl.textContent = 'Sačuvano.';
+    resetDogadjajForm();
+    renderAdminDogadjaji();
+  }else{
+    statusEl.textContent = 'Greška pri čuvanju, pokušajte ponovo.';
+    statusEl.className = 'status-msg err';
+  }
+}
+async function deleteDogadjaj(id){
+  if(!confirm('Obrisati ovaj događaj?')) return;
+  dogadjaji = dogadjaji.filter(d=>d.id!==id);
+  await saveDogadjaji();
+  renderAdminDogadjaji();
+}
+function renderAdminDogadjaji(){
+  const list = document.getElementById('adminDogadjajiList');
+  if(dogadjaji.length===0){
+    list.innerHTML = '<div class="empty-msg">Još nema unetih događaja.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  dogadjaji.slice().sort((a,b)=>a.datum.localeCompare(b.datum)).forEach(d=>{
+    const row = document.createElement('div');
+    row.className = 'admin-item';
+    const past = d.datum < todayStr();
+    row.innerHTML = `
+      <div class="admin-item-body">
+        <div class="note-cat" style="${past ? 'color:var(--soil-soft);' : 'color:var(--leaf);'}">${d.datum}${d.vreme ? ', '+escapeHtml(d.vreme) : ''}${past ? ' (prošlo)' : ''}</div>
+        <div class="note-q">${escapeHtml(d.naziv)}</div>
+        ${d.mesto ? `<div class="note-a">📍 ${escapeHtml(d.mesto)}</div>` : ''}
+      </div>
+      <div class="admin-item-actions">
+        <button class="btn btn-ghost btn-small" data-editd="${d.id}">Izmeni</button>
+        <button class="btn btn-danger btn-small" data-deld="${d.id}">Obriši</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('[data-editd]').forEach(b=>b.onclick = ()=>{
+    const d = dogadjaji.find(x=>x.id===b.dataset.editd);
+    if(d) fillDogadjajFormForEdit(d);
+  });
+  list.querySelectorAll('[data-deld]').forEach(b=>b.onclick = ()=> deleteDogadjaj(b.dataset.deld));
+}
+
 function renderUnanswered(){
   const el = document.getElementById('unansweredList');
   if(unanswered.length===0){
@@ -1071,6 +1233,38 @@ function openTelefoniDrawer(){
 function closeTelefoniDrawer(){
   document.getElementById('telefoniOverlay').classList.add('hidden');
 }
+function makeEventCard(d, alt){
+  const note = document.createElement('div');
+  note.className = 'note' + (alt ? ' alt' : '');
+  const days = daysUntil(d.datum);
+  const dateObj = new Date(d.datum+'T00:00:00');
+  const dateStr = dateObj.toLocaleDateString('sr-RS', {day:'numeric', month:'long'});
+  const vremeStr = d.vreme ? `, ${escapeHtml(d.vreme)}` : '';
+  const mestoStr = d.mesto ? `<div class="note-a" style="margin-top:2px;">📍 ${escapeHtml(d.mesto)}</div>` : '';
+  const opisStr = d.opis ? `<div class="note-a" style="margin-top:6px;">${escapeHtml(d.opis)}</div>` : '';
+  note.innerHTML = `
+    <div class="pin"></div>
+    <div class="note-cat" style="color:var(--leaf);">${eventLabel(days)} — ${dateStr}${vremeStr}</div>
+    <div class="note-q">${escapeHtml(d.naziv)}</div>
+    ${mestoStr}
+    ${opisStr}
+  `;
+  return note;
+}
+function openDogadjajiDrawer(){
+  const items = upcomingDogadjaji();
+  const el = document.getElementById('dogadjajiList');
+  if(items.length===0){
+    el.innerHTML = '<div class="empty-msg">Trenutno nema najavljenih kulturnih događaja.</div>';
+  }else{
+    el.innerHTML = '';
+    items.forEach((d,idx)=> el.appendChild(makeEventCard(d, idx%2===1)) );
+  }
+  document.getElementById('dogadjajiOverlay').classList.remove('hidden');
+}
+function closeDogadjajiDrawer(){
+  document.getElementById('dogadjajiOverlay').classList.add('hidden');
+}
 function renderAccessLog(){
   const el = document.getElementById('accessLogList');
   if(accessLog.length===0){
@@ -1161,6 +1355,14 @@ document.getElementById('telefoniOverlay').addEventListener('click', e=>{
   if(e.target.id === 'telefoniOverlay') closeTelefoniDrawer();
 });
 
+document.getElementById('dogadjajiBtn').onclick = openDogadjajiDrawer;
+document.getElementById('closeDogadjajiBtn').onclick = closeDogadjajiDrawer;
+document.getElementById('dogadjajiOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'dogadjajiOverlay') closeDogadjajiDrawer();
+});
+document.getElementById('saveDogadjajBtn').onclick = saveDogadjaj;
+document.getElementById('cancelDogadjajEditBtn').onclick = resetDogadjajForm;
+
 async function submitPredlog(){
   const input = document.getElementById('predlogInput');
   const contactInput = document.getElementById('predlogContact');
@@ -1188,6 +1390,7 @@ document.getElementById('cancelEditBtn').onclick = resetForm;
   await loadFAQ();
   renderChips();
   renderBoard();
+  await loadDogadjaji();
   await loadOglasi();
   renderTicker();
   setInterval(pruneOglasi, 60000);
