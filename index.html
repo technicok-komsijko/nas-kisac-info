@@ -450,6 +450,17 @@
 
     <div id="adminPanel" class="hidden">
       <div class="admin-form">
+        <h2>Rezervna kopija</h2>
+        <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Preporuka: preuzmi rezervnu kopiju posle svake veće sesije unosa.</p>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="backupExportBtn">⬇ Preuzmi rezervnu kopiju</button>
+          <button class="btn btn-ghost" id="backupImportBtn">⬆ Uvezi rezervnu kopiju</button>
+          <input type="file" id="backupFileInput" accept=".json" class="hidden">
+        </div>
+        <div class="status-msg" id="backupStatus"></div>
+      </div>
+
+      <div class="admin-form">
         <h2 id="formTitle">Dodaj novu informaciju</h2>
         <div class="field">
           <label for="fQuestion">Pitanje / naslov</label>
@@ -588,6 +599,72 @@ async function binUpdateKey(key, value){
   }
   all[key] = value;
   return await binSetAll(all);
+}
+
+async function exportBackup(){
+  const statusEl = document.getElementById('backupStatus');
+  statusEl.textContent = 'Preuzimanje…';
+  statusEl.className = 'status-msg';
+  const all = await binGetAll();
+  if(all === null){
+    statusEl.textContent = 'Greška — nije moguće preuzeti bazu trenutno, pokušajte ponovo.';
+    statusEl.className = 'status-msg err';
+    return;
+  }
+  const dataStr = JSON.stringify(all, null, 2);
+  const blob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  a.href = url;
+  a.download = `kisac-info-backup-${ts}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  statusEl.textContent = 'Preuzeto.';
+  statusEl.className = 'status-msg';
+}
+
+function triggerImportPicker(){
+  document.getElementById('backupFileInput').click();
+}
+
+async function handleImportFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('backupStatus');
+  const text = await file.text();
+  let parsed;
+  try{
+    parsed = JSON.parse(text);
+  }catch(err){
+    statusEl.textContent = 'Fajl nije ispravan JSON.';
+    statusEl.className = 'status-msg err';
+    e.target.value = '';
+    return;
+  }
+  if(!confirm('Ovo će PREPISATI celu trenutnu bazu sadržajem iz fajla. Da li ste sigurni?')){
+    e.target.value = '';
+    return;
+  }
+  statusEl.textContent = 'Uvoženje…';
+  statusEl.className = 'status-msg';
+  const ok = await binSetAll(parsed);
+  if(ok){
+    await loadFAQ(); renderAdminList(); renderChips(); renderBoard();
+    await loadDogadjaji(); renderAdminDogadjaji();
+    await loadOglasi(); renderAdminOglasi(); renderTicker();
+    await loadPredlozi(); renderPredlozi();
+    await loadUnanswered(); renderUnanswered();
+    await loadAccessLog(); renderAccessLog();
+    statusEl.textContent = 'Uvezeno i osveženo.';
+    statusEl.className = 'status-msg';
+  }else{
+    statusEl.textContent = 'Greška pri uvozu, pokušajte ponovo.';
+    statusEl.className = 'status-msg err';
+  }
+  e.target.value = '';
 }
 
 let faqItems = [];
@@ -1477,6 +1554,9 @@ document.getElementById('predlogInput').addEventListener('keydown', e=>{ if(e.ke
 document.getElementById('pinSubmit').onclick = unlockAdmin;
 document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') unlockAdmin(); });
 document.getElementById('backToPublicBtn').onclick = showPublic;
+document.getElementById('backupExportBtn').onclick = exportBackup;
+document.getElementById('backupImportBtn').onclick = triggerImportPicker;
+document.getElementById('backupFileInput').addEventListener('change', handleImportFile);
 document.getElementById('saveEntryBtn').onclick = saveEntry;
 document.getElementById('cancelEditBtn').onclick = resetForm;
 
