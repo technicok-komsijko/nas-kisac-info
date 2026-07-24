@@ -310,6 +310,20 @@
     </div>
   </header>
 
+  <div style="text-align:center; margin:-4px 0 16px;">
+    <span id="helpToggle" style="cursor:pointer; color:var(--soil-soft); font-size:0.85rem; text-decoration:underline;">❓ Kako da koristite ovaj alat?</span>
+  </div>
+  <div id="helpPanel" class="ask-card hidden" style="font-size:0.92rem; line-height:1.6;">
+    <p style="margin:0 0 10px;">🔍 <strong>Pretraga (polje gore)</strong> — ukucajte šta vas zanima (npr. "kad radi ambulanta", "autobus", "pošta") i odgovor se odmah pojavljuje ispod. Radi i ako pogrešite slovo.</p>
+    <p style="margin:0 0 10px;">📋 <strong>Lista informacija</strong> — pregled svega što je uneto, grupisano po temama, ako želite samo da "prošetate" bez konkretnog pitanja.</p>
+    <p style="margin:0 0 10px;">⚠️ <strong>Planirani radovi i isključenja</strong> — najave unapred (npr. isključenje struje/vode sledeće nedelje, radovi na putu).</p>
+    <p style="margin:0 0 10px;">📢 <strong>Trenutne informacije</strong> — ono što se dešava upravo sada (npr. zastoj u saobraćaju).</p>
+    <p style="margin:0 0 10px;">📞 <strong>Važni telefoni</strong> — brz spisak ključnih brojeva (MZ, ambulanta, hitne službe...), kliknite na broj da odmah pozovete.</p>
+    <p style="margin:0 0 10px;">🎭 <strong>Kulturni događaji</strong> — šta se dešava u selu narednih dana.</p>
+    <p style="margin:0 0 10px;">📢 <strong>Mali oglasi</strong> (tiker na vrhu) — kratki oglasi meštana, sami nestaju za 24h. Svako može da doda svoj — samo ukucajte tekst i broj telefona.</p>
+    <p style="margin:0;">💬 <strong>Imate pitanje ili predlog?</strong> — ispod pretrage postoji polje gde možete da nam javite šta vam nedostaje.</p>
+  </div>
+
   <!-- ================= PUBLIC VIEW ================= -->
   <main id="publicView">
 
@@ -1500,6 +1514,9 @@ function renderAccessLog(){
 }
 
 // ---------- events ----------
+document.getElementById('helpToggle').addEventListener('click', ()=>{
+  document.getElementById('helpPanel').classList.toggle('hidden');
+});
 document.getElementById('askBtn').onclick = ()=> renderBoard();
 document.getElementById('askInput').addEventListener('input', ()=> renderBoard());
 document.getElementById('askInput').addEventListener('keydown', e=>{ if(e.key==='Enter') e.target.blur(); });
