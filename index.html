@@ -317,7 +317,7 @@
     <p style="margin:0 0 10px;">🔍 <strong>Pretraga (polje gore)</strong> — ukucajte šta vas zanima (npr. "kad radi ambulanta", "autobus", "pošta") i odgovor se odmah pojavljuje ispod. Radi i ako pogrešite slovo.</p>
     <p style="margin:0 0 10px;">📋 <strong>Lista informacija</strong> — pregled svega što je uneto, grupisano po temama, ako želite samo da "prošetate" bez konkretnog pitanja.</p>
     <p style="margin:0 0 10px;">⚠️ <strong>Planirani radovi i isključenja</strong> — najave unapred (npr. isključenje struje/vode sledeće nedelje, radovi na putu).</p>
-    <p style="margin:0 0 10px;">📢 <strong>Trenutne informacije</strong> — ono što se dešava upravo sada (npr. zastoj u saobraćaju).</p>
+    <p style="margin:0 0 10px;">📢 <strong>Trenutne informacije</strong> — ono što se dešava upravo sada (npr. zastoj u saobraćaju). Svako može samo da prijavi situaciju u polju ispod dugmadi — bez čekanja na odobrenje.</p>
     <p style="margin:0 0 10px;">📞 <strong>Važni telefoni</strong> — brz spisak ključnih brojeva (MZ, ambulanta, hitne službe...), kliknite na broj da odmah pozovete.</p>
     <p style="margin:0 0 10px;">🎭 <strong>Kulturni događaji</strong> — šta se dešava u selu narednih dana.</p>
     <p style="margin:0 0 10px;">📢 <strong>Mali oglasi</strong> (tiker na vrhu) — kratki oglasi meštana, sami nestaju za 24h. Svako može da doda svoj — samo ukucajte tekst i broj telefona.</p>
@@ -359,6 +359,15 @@
       <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">📢 Trenutne informacije</button>
       <button id="telefoniBtn" class="btn btn-ghost" style="border-color:var(--sky); color:var(--sky);">📞 Važni telefoni</button>
       <button id="dogadjajiBtn" class="btn btn-ghost" style="border-color:var(--leaf); color:var(--leaf);">🎭 Kulturni događaji</button>
+    </div>
+
+    <div class="ask-card">
+      <label for="vestInput">Prijavite trenutnu situaciju (npr. zastoj u saobraćaju, kvar semafora)</label>
+      <div class="ask-row">
+        <input type="text" id="vestInput" maxlength="200" placeholder="npr. Zastoj kod pijace" autocomplete="off">
+        <button class="btn btn-primary" id="vestBtn">Prijavi</button>
+      </div>
+      <div class="status-msg" id="vestStatus"></div>
     </div>
 
     <div id="listaOverlay" class="oglasi-overlay hidden">
@@ -1416,22 +1425,67 @@ function openPlaniraniDrawer(){
 function closePlaniraniDrawer(){
   document.getElementById('planiraniOverlay').classList.add('hidden');
 }
+const TRENUTNE_VESTI_KEY = 'kisac-trenutne-vesti';
+const TRENUTNA_VEST_TTL_MS = 3 * 60 * 60 * 1000; // 3 sata
+let trenutneVesti = [];
+async function loadTrenutneVesti(){
+  try{
+    const all = await binGetAll();
+    trenutneVesti = (all && all[TRENUTNE_VESTI_KEY]) || [];
+  }catch(e){ trenutneVesti = []; }
+  pruneTrenutneVesti();
+}
+function pruneTrenutneVesti(){
+  const cutoff = Date.now() - TRENUTNA_VEST_TTL_MS;
+  trenutneVesti = trenutneVesti.filter(v => v.time > cutoff);
+}
+async function saveTrenutneVesti(){
+  try{ await binUpdateKey(TRENUTNE_VESTI_KEY, trenutneVesti); return true; }catch(e){ return false; }
+}
+async function postTrenutnaVest(text){
+  pruneTrenutneVesti();
+  trenutneVesti.push({ id:uid(), text, time:Date.now() });
+  return await saveTrenutneVesti();
+}
+function makeVestNote(v, alt){
+  const note = document.createElement('div');
+  note.className = 'note' + (alt ? ' alt' : '');
+  const mins = Math.max(1, Math.round((Date.now() - v.time) / 60000));
+  const timeLabel = mins < 60 ? `pre ${mins} min` : `pre ${Math.round(mins/60)} h`;
+  note.innerHTML = `
+    <div class="pin"></div>
+    <div class="note-cat">Prijava meštana · ${timeLabel}</div>
+    <div class="note-a">${escapeHtml(v.text)}</div>
+  `;
+  return note;
+}
+
 function openHitnoDrawer(){
-  const items = faqItems.filter(i=>i.category==='Trenutne informacije' && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  pruneTrenutneVesti();
+  const faqPart = faqItems.filter(i=>i.category==='Trenutne informacije' && !isExpired(i))
+    .map(i => ({ time:(i.updated||0), node: () => makeNote(i, false) }));
+  const vestPart = trenutneVesti
+    .map(v => ({ time:v.time, node: () => makeVestNote(v, false) }));
+  const combined = faqPart.concat(vestPart).sort((a,b)=> b.time - a.time);
+
   const el = document.getElementById('hitnoList');
   el.innerHTML = '';
 
-  if(items.length===0){
+  if(combined.length===0){
     el.innerHTML = '<div class="empty-msg">Trenutno nema aktivnih obaveštenja.</div>';
-  }else if(items.length===1){
-    el.appendChild(makeNote(items[0], false));
+  }else if(combined.length===1){
+    el.appendChild(combined[0].node());
   }else{
     const track = document.createElement('div');
     track.className = 'ticker-track';
-    const duration = Math.max(items.length * 7, 12);
+    const duration = Math.max(combined.length * 7, 12);
     track.style.animationDuration = duration + 's';
     // Lista se udvostrucuje radi neprekidnog (besavnog) kruzenja
-    items.concat(items).forEach((item, idx) => track.appendChild(makeNote(item, idx%2===1)));
+    combined.concat(combined).forEach((x, idx) => {
+      const node = x.node();
+      if(idx % 2 === 1) node.classList.add('alt');
+      track.appendChild(node);
+    });
     el.appendChild(track);
     requestAnimationFrame(()=> track.classList.add('animate'));
   }
@@ -1440,6 +1494,7 @@ function openHitnoDrawer(){
 function closeHitnoDrawer(){
   document.getElementById('hitnoOverlay').classList.add('hidden');
 }
+
 function pauseHitnoFlow(){
   const track = document.querySelector('#hitnoList .ticker-track');
   if(track) track.style.animationPlayState = 'paused';
@@ -1587,6 +1642,46 @@ document.getElementById('planiraniOverlay').addEventListener('click', e=>{
   if(e.target.id === 'planiraniOverlay') closePlaniraniDrawer();
 });
 
+const VEST_COOLDOWN_MS = 2 * 60 * 1000; // 2 minuta po uredjaju
+function vestCooldownRemaining(){
+  try{
+    const last = parseInt(localStorage.getItem('kisac-last-vest-time') || '0', 10);
+    const remaining = VEST_COOLDOWN_MS - (Date.now() - last);
+    return remaining > 0 ? remaining : 0;
+  }catch(e){ return 0; }
+}
+function markVestPosted(){
+  try{ localStorage.setItem('kisac-last-vest-time', String(Date.now())); }catch(e){}
+}
+async function submitVest(){
+  const input = document.getElementById('vestInput');
+  const status = document.getElementById('vestStatus');
+  const text = input.value.trim();
+  if(!text) return;
+
+  const remaining = vestCooldownRemaining();
+  if(remaining > 0){
+    const mins = Math.ceil(remaining / 60000);
+    status.textContent = `Sačekajte jos ${mins} min pre sledeće prijave.`;
+    status.className = 'status-msg err';
+    return;
+  }
+
+  const ok = await postTrenutnaVest(text);
+  if(ok){
+    markVestPosted();
+    input.value = '';
+    status.textContent = 'Prijavljeno, hvala!';
+    status.className = 'status-msg';
+    setTimeout(()=>{ status.textContent=''; }, 3000);
+  }else{
+    status.textContent = 'Greška, pokušajte ponovo.';
+    status.className = 'status-msg err';
+  }
+}
+document.getElementById('vestBtn').onclick = submitVest;
+document.getElementById('vestInput').addEventListener('keydown', e=>{ if(e.key==='Enter') submitVest(); });
+
 document.getElementById('hitnoBtn').onclick = openHitnoDrawer;
 document.getElementById('closeHitnoBtn').onclick = closeHitnoDrawer;
 document.getElementById('hitnoOverlay').addEventListener('click', e=>{
@@ -1640,6 +1735,7 @@ document.getElementById('cancelEditBtn').onclick = resetForm;
   renderChips();
   renderBoard();
   await loadDogadjaji();
+  await loadTrenutneVesti();
   await loadOglasi();
   renderTicker();
   setInterval(pruneOglasi, 60000);
