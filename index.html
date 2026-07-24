@@ -302,7 +302,7 @@
       <div class="ticker-inner" id="tickerInner">
         <div class="ticker-empty">Trenutno nema malih oglasa.</div>
       </div>
-      <div class="ticker-hint">dodirni za sve oglase</div>
+      <div class="ticker-hint">dodirni za sve oglase · za radove i isključenja koristite dugme ispod</div>
     </div>
 
     <div class="ask-card">
@@ -789,13 +789,21 @@ function sortedOglasi(){
   return oglasi.slice().sort((a,b)=>b.time-a.time);
 }
 
+function combinedTickerItems(){
+  const radovi = faqItems
+    .filter(i => i.category === 'Radovi i isključenja' && !isExpired(i))
+    .sort((a,b) => (b.updated||0) - (a.updated||0))
+    .map(i => ({ type:'radovi', text:i.question }));
+  const oglasiItems = sortedOglasi().map(o => ({ type:'oglas', text:o.text, phone:o.phone }));
+  return radovi.concat(oglasiItems);
+}
 function renderTicker(){
-  const list = sortedOglasi();
+  const list = combinedTickerItems();
   const inner = document.getElementById('tickerInner');
   inner.innerHTML = '';
 
   if(list.length === 0){
-    inner.innerHTML = '<div class="ticker-empty">Trenutno nema malih oglasa.</div>';
+    inner.innerHTML = '<div class="ticker-empty">Trenutno nema oglasa ni obaveštenja.</div>';
     return;
   }
   if(list.length === 1){
@@ -812,13 +820,20 @@ function renderTicker(){
   inner.appendChild(track);
   requestAnimationFrame(()=> track.classList.add('animate'));
 }
-function buildTickerItem(o){
+function buildTickerItem(item){
   const div = document.createElement('div');
   div.className = 'ticker-item';
-  div.innerHTML = `
-    <div class="t-text">${escapeHtml(o.text)}</div>
-    <div class="t-phone">${escapeHtml(o.phone)}</div>
-  `;
+  if(item.type === 'radovi'){
+    div.innerHTML = `
+      <div class="t-text">⚠ ${escapeHtml(item.text)}</div>
+      <div class="t-phone" style="color:var(--brick);">Radovi i isključenja</div>
+    `;
+  }else{
+    div.innerHTML = `
+      <div class="t-text">${escapeHtml(item.text)}</div>
+      <div class="t-phone">${escapeHtml(item.phone)}</div>
+    `;
+  }
   return div;
 }
 function pauseTicker(){
@@ -1110,6 +1125,7 @@ async function saveEntry(){
     renderAdminList();
     renderChips();
     renderBoard();
+    renderTicker();
   }else{
     statusEl.textContent = 'Greška pri čuvanju, pokušajte ponovo.';
     statusEl.className = 'status-msg err';
@@ -1122,6 +1138,7 @@ async function deleteEntry(id){
   renderAdminList();
   renderChips();
   renderBoard();
+  renderTicker();
 }
 function renderAdminList(){
   const list = document.getElementById('adminList');
