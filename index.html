@@ -642,6 +642,18 @@ async function binUpdateKey(key, value){
   all[key] = value;
   return await binSetAll(all);
 }
+// Bezbedno dodavanje stavke u deljeni niz — UVEK prvo učita STVARNO trenutno stanje
+// (ne oslanja se na lokalnu, možda praznu, kopiju niza), da se ne bi obrisali tuđi unosi.
+async function binAppendToArray(key, newItem, maxLen){
+  const all = await binGetAll();
+  if(all === null) return null;
+  let arr = all[key] || [];
+  arr.push(newItem);
+  if(maxLen) arr = arr.slice(-maxLen);
+  all[key] = arr;
+  const ok = await binSetAll(all);
+  return ok ? arr : null;
+}
 async function binUpdateMultiple(kvPairs){
   const all = await binGetAll();
   if(all === null) return false;
@@ -760,8 +772,8 @@ async function saveUnanswered(){
   try{ await binUpdateKey(UNANSWERED_KEY, unanswered.slice(-200)); }catch(e){}
 }
 async function logUnanswered(text){
-  unanswered.push({id:uid(), text, time:Date.now()});
-  await saveUnanswered();
+  const result = await binAppendToArray(UNANSWERED_KEY, {id:uid(), text, time:Date.now()}, 200);
+  if(result) unanswered = result;
 }
 
 const PREDLOZI_KEY = 'kisac-predlozi';
@@ -776,8 +788,8 @@ async function savePredlozi(){
   try{ await binUpdateKey(PREDLOZI_KEY, predlozi.slice(-200)); }catch(e){}
 }
 async function postPredlog(text, contact){
-  predlozi.push({id:uid(), text, contact: contact || '', time:Date.now()});
-  await savePredlozi();
+  const result = await binAppendToArray(PREDLOZI_KEY, {id:uid(), text, contact: contact || '', time:Date.now()}, 200);
+  if(result) predlozi = result;
 }
 
 const VISIT_STATS_KEY = 'kisac-visit-stats';
@@ -789,12 +801,16 @@ async function loadVisitStats(){
   }catch(e){ visitStats = { total: 0, byDay: {} }; }
 }
 async function logVisit(){
-  await loadVisitStats();
+  const all = await binGetAll();
+  if(all === null) return; // ne pogadjaj — preskoci umesto da prepišeš pogrešnom vrednošću
+  const stats = all[VISIT_STATS_KEY] || { total: 0, byDay: {} };
   const today = todayStr();
-  visitStats.total = (visitStats.total || 0) + 1;
-  visitStats.byDay = visitStats.byDay || {};
-  visitStats.byDay[today] = (visitStats.byDay[today] || 0) + 1;
-  try{ await binUpdateKey(VISIT_STATS_KEY, visitStats); }catch(e){}
+  stats.total = (stats.total || 0) + 1;
+  stats.byDay = stats.byDay || {};
+  stats.byDay[today] = (stats.byDay[today] || 0) + 1;
+  all[VISIT_STATS_KEY] = stats;
+  visitStats = stats;
+  try{ await binSetAll(all); }catch(e){}
 }
 
 const SEARCH_LOG_KEY = 'kisac-search-log';
@@ -806,9 +822,8 @@ async function loadSearchLog(){
   }catch(e){ searchLog = []; }
 }
 async function logSearch(text, found){
-  searchLog.push({ text, found, time: Date.now() });
-  searchLog = searchLog.slice(-500);
-  try{ await binUpdateKey(SEARCH_LOG_KEY, searchLog); }catch(e){}
+  const result = await binAppendToArray(SEARCH_LOG_KEY, { text, found, time: Date.now() }, 500);
+  if(result) searchLog = result;
 }
 
 const CLICK_STATS_KEY = 'kisac-click-stats';
@@ -820,9 +835,13 @@ async function loadClickStats(){
   }catch(e){ clickStats = {}; }
 }
 async function logClick(name){
-  await loadClickStats();
-  clickStats[name] = (clickStats[name] || 0) + 1;
-  try{ await binUpdateKey(CLICK_STATS_KEY, clickStats); }catch(e){}
+  const all = await binGetAll();
+  if(all === null) return;
+  const stats = all[CLICK_STATS_KEY] || {};
+  stats[name] = (stats[name] || 0) + 1;
+  all[CLICK_STATS_KEY] = stats;
+  clickStats = stats;
+  try{ await binSetAll(all); }catch(e){}
 }
 
 async function loadAccessLog(){
@@ -887,8 +906,8 @@ async function saveOglasi(){
 }
 async function postOglas(text, phone){
   pruneOglasi();
-  oglasi.push({id:uid(), text, phone, time:Date.now()});
-  await saveOglasi();
+  const result = await binAppendToArray(OGLASI_KEY, {id:uid(), text, phone, time:Date.now()});
+  if(result) oglasi = result;
 }
 
 function sortedOglasi(){
@@ -1507,8 +1526,9 @@ async function saveTrenutneVesti(){
 }
 async function postTrenutnaVest(text){
   pruneTrenutneVesti();
-  trenutneVesti.push({ id:uid(), text, time:Date.now() });
-  return await saveTrenutneVesti();
+  const result = await binAppendToArray(TRENUTNE_VESTI_KEY, { id:uid(), text, time:Date.now() });
+  if(result){ trenutneVesti = result; return true; }
+  return false;
 }
 function makeVestNote(v, alt){
   const note = document.createElement('div');
