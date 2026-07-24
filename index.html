@@ -235,6 +235,21 @@
     from{ transform:translateY(0); }
     to{ transform:translateY(-50%); }
   }
+  .flow-viewport{
+    height:480px;
+    max-height:60vh;
+    overflow:hidden;
+    position:relative;
+    border-radius:8px;
+  }
+  .flow-viewport .ticker-track.animate{
+    animation-name:tickerScroll;
+    animation-timing-function:linear;
+    animation-iteration-count:infinite;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .flow-viewport .ticker-track.animate{ animation:none; }
+  }
   .ticker-item{
     height:56px;
     display:flex;
@@ -302,7 +317,7 @@
       <div class="ticker-inner" id="tickerInner">
         <div class="ticker-empty">Trenutno nema malih oglasa.</div>
       </div>
-      <div class="ticker-hint">dodirni za sve oglase · za radove i isključenja koristite dugme ispod</div>
+      <div class="ticker-hint">dodirni za sve oglase</div>
     </div>
 
     <div class="ask-card">
@@ -326,7 +341,8 @@
 
     <div style="text-align:center; margin:20px 0 20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
       <button id="listaBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">📋 Lista informacija</button>
-      <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">⚠ Radovi i isključenja</button>
+      <button id="planiraniBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">⚠ Planirani radovi i isključenja</button>
+      <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">📢 Trenutne informacije</button>
       <button id="telefoniBtn" class="btn btn-ghost" style="border-color:var(--sky); color:var(--sky);">📞 Važni telefoni</button>
       <button id="dogadjajiBtn" class="btn btn-ghost" style="border-color:var(--leaf); color:var(--leaf);">🎭 Kulturni događaji</button>
     </div>
@@ -351,13 +367,25 @@
       </div>
     </div>
 
+    <div id="planiraniOverlay" class="oglasi-overlay hidden">
+      <div class="oglasi-drawer">
+        <div class="oglasi-drawer-head">
+          <h3>Planirani radovi i isključenja</h3>
+          <button id="closePlaniraniBtn" class="btn btn-ghost btn-small">Zatvori</button>
+        </div>
+        <div id="planiraniList"></div>
+      </div>
+    </div>
+
     <div id="hitnoOverlay" class="oglasi-overlay hidden">
       <div class="oglasi-drawer">
         <div class="oglasi-drawer-head">
-          <h3>Radovi i isključenja</h3>
+          <h3>Trenutne informacije</h3>
           <button id="closeHitnoBtn" class="btn btn-ghost btn-small">Zatvori</button>
         </div>
-        <div id="hitnoList"></div>
+        <div id="hitnoViewport" class="flow-viewport">
+          <div id="hitnoList"></div>
+        </div>
       </div>
     </div>
 
@@ -458,7 +486,8 @@
             <option>Radno vreme</option>
             <option>Kontakt</option>
             <option>Odvoz smeća</option>
-            <option>Radovi i isključenja</option>
+            <option>Planirani radovi i isključenja</option>
+            <option>Trenutne informacije</option>
             <option>Važni telefoni</option>
             <option>Obaveštenje</option>
             <option>Ostalo</option>
@@ -789,21 +818,13 @@ function sortedOglasi(){
   return oglasi.slice().sort((a,b)=>b.time-a.time);
 }
 
-function combinedTickerItems(){
-  const radovi = faqItems
-    .filter(i => i.category === 'Radovi i isključenja' && !isExpired(i))
-    .sort((a,b) => (b.updated||0) - (a.updated||0))
-    .map(i => ({ type:'radovi', text:i.question }));
-  const oglasiItems = sortedOglasi().map(o => ({ type:'oglas', text:o.text, phone:o.phone }));
-  return radovi.concat(oglasiItems);
-}
 function renderTicker(){
-  const list = combinedTickerItems();
+  const list = sortedOglasi();
   const inner = document.getElementById('tickerInner');
   inner.innerHTML = '';
 
   if(list.length === 0){
-    inner.innerHTML = '<div class="ticker-empty">Trenutno nema oglasa ni obaveštenja.</div>';
+    inner.innerHTML = '<div class="ticker-empty">Trenutno nema malih oglasa.</div>';
     return;
   }
   if(list.length === 1){
@@ -820,20 +841,13 @@ function renderTicker(){
   inner.appendChild(track);
   requestAnimationFrame(()=> track.classList.add('animate'));
 }
-function buildTickerItem(item){
+function buildTickerItem(o){
   const div = document.createElement('div');
   div.className = 'ticker-item';
-  if(item.type === 'radovi'){
-    div.innerHTML = `
-      <div class="t-text">⚠ ${escapeHtml(item.text)}</div>
-      <div class="t-phone" style="color:var(--brick);">Radovi i isključenja</div>
-    `;
-  }else{
-    div.innerHTML = `
-      <div class="t-text">${escapeHtml(item.text)}</div>
-      <div class="t-phone">${escapeHtml(item.phone)}</div>
-    `;
-  }
+  div.innerHTML = `
+    <div class="t-text">${escapeHtml(o.text)}</div>
+    <div class="t-phone">${escapeHtml(o.phone)}</div>
+  `;
   return div;
 }
 function pauseTicker(){
@@ -1374,19 +1388,51 @@ function renderPredlozi(){
   });
 }
 
-function openHitnoDrawer(){
-  const items = faqItems.filter(i=>i.category==='Radovi i isključenja').sort((a,b)=>(b.updated||0)-(a.updated||0));
-  const el = document.getElementById('hitnoList');
+function openPlaniraniDrawer(){
+  const items = faqItems.filter(i=>i.category==='Planirani radovi i isključenja' && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  const el = document.getElementById('planiraniList');
   if(items.length===0){
-    el.innerHTML = '<div class="empty-msg">Trenutno nema aktivnih radova ni isključenja.</div>';
+    el.innerHTML = '<div class="empty-msg">Trenutno nema najavljenih radova ni isključenja.</div>';
   }else{
     el.innerHTML = '';
     items.forEach((item,idx)=> el.appendChild(makeNote(item, idx%2===1)) );
+  }
+  document.getElementById('planiraniOverlay').classList.remove('hidden');
+}
+function closePlaniraniDrawer(){
+  document.getElementById('planiraniOverlay').classList.add('hidden');
+}
+function openHitnoDrawer(){
+  const items = faqItems.filter(i=>i.category==='Trenutne informacije' && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  const el = document.getElementById('hitnoList');
+  el.innerHTML = '';
+
+  if(items.length===0){
+    el.innerHTML = '<div class="empty-msg">Trenutno nema aktivnih obaveštenja.</div>';
+  }else if(items.length===1){
+    el.appendChild(makeNote(items[0], false));
+  }else{
+    const track = document.createElement('div');
+    track.className = 'ticker-track';
+    const duration = Math.max(items.length * 7, 12);
+    track.style.animationDuration = duration + 's';
+    // Lista se udvostrucuje radi neprekidnog (besavnog) kruzenja
+    items.concat(items).forEach((item, idx) => track.appendChild(makeNote(item, idx%2===1)));
+    el.appendChild(track);
+    requestAnimationFrame(()=> track.classList.add('animate'));
   }
   document.getElementById('hitnoOverlay').classList.remove('hidden');
 }
 function closeHitnoDrawer(){
   document.getElementById('hitnoOverlay').classList.add('hidden');
+}
+function pauseHitnoFlow(){
+  const track = document.querySelector('#hitnoList .ticker-track');
+  if(track) track.style.animationPlayState = 'paused';
+}
+function resumeHitnoFlow(){
+  const track = document.querySelector('#hitnoList .ticker-track');
+  if(track) track.style.animationPlayState = 'running';
 }
 function openTelefoniDrawer(){
   const items = faqItems.filter(i=>i.category==='Važni telefoni').sort((a,b)=>a.question.localeCompare(b.question));
@@ -1518,11 +1564,19 @@ document.getElementById('listaOverlay').addEventListener('click', e=>{
   if(e.target.id === 'listaOverlay') closeListaDrawer();
 });
 
+document.getElementById('planiraniBtn').onclick = openPlaniraniDrawer;
+document.getElementById('closePlaniraniBtn').onclick = closePlaniraniDrawer;
+document.getElementById('planiraniOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'planiraniOverlay') closePlaniraniDrawer();
+});
+
 document.getElementById('hitnoBtn').onclick = openHitnoDrawer;
 document.getElementById('closeHitnoBtn').onclick = closeHitnoDrawer;
 document.getElementById('hitnoOverlay').addEventListener('click', e=>{
   if(e.target.id === 'hitnoOverlay') closeHitnoDrawer();
 });
+document.getElementById('hitnoViewport').addEventListener('mouseenter', pauseHitnoFlow);
+document.getElementById('hitnoViewport').addEventListener('mouseleave', resumeHitnoFlow);
 
 document.getElementById('telefoniBtn').onclick = openTelefoniDrawer;
 document.getElementById('closeTelefoniBtn').onclick = closeTelefoniDrawer;
