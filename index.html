@@ -589,6 +589,10 @@
       <h2 style="font-size:1.05rem; margin:26px 0 10px;">Pokušaji prijave</h2>
       <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Vreme pokušaja i da li je šifra bila tačna. (Ne beleži se ko je pokušao, samo da se pokušalo.)</p>
       <div id="accessLogList"></div>
+
+      <h2 style="font-size:1.05rem; margin:26px 0 10px;">Statistika</h2>
+      <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Posete, najčešće pretrage i klikovi na dugmad.</p>
+      <div id="statsSummary"></div>
     </div>
 
     <button class="btn btn-ghost" id="backToPublicBtn" style="margin-top:20px;">← Nazad na javni prikaz</button>
@@ -636,6 +640,12 @@ async function binUpdateKey(key, value){
     return false;
   }
   all[key] = value;
+  return await binSetAll(all);
+}
+async function binUpdateMultiple(kvPairs){
+  const all = await binGetAll();
+  if(all === null) return false;
+  Object.keys(kvPairs).forEach(k => { all[k] = kvPairs[k]; });
   return await binSetAll(all);
 }
 
@@ -768,6 +778,51 @@ async function savePredlozi(){
 async function postPredlog(text, contact){
   predlozi.push({id:uid(), text, contact: contact || '', time:Date.now()});
   await savePredlozi();
+}
+
+const VISIT_STATS_KEY = 'kisac-visit-stats';
+let visitStats = { total: 0, byDay: {} };
+async function loadVisitStats(){
+  try{
+    const all = await binGetAll();
+    visitStats = (all && all[VISIT_STATS_KEY]) || { total: 0, byDay: {} };
+  }catch(e){ visitStats = { total: 0, byDay: {} }; }
+}
+async function logVisit(){
+  await loadVisitStats();
+  const today = todayStr();
+  visitStats.total = (visitStats.total || 0) + 1;
+  visitStats.byDay = visitStats.byDay || {};
+  visitStats.byDay[today] = (visitStats.byDay[today] || 0) + 1;
+  try{ await binUpdateKey(VISIT_STATS_KEY, visitStats); }catch(e){}
+}
+
+const SEARCH_LOG_KEY = 'kisac-search-log';
+let searchLog = [];
+async function loadSearchLog(){
+  try{
+    const all = await binGetAll();
+    searchLog = (all && all[SEARCH_LOG_KEY]) || [];
+  }catch(e){ searchLog = []; }
+}
+async function logSearch(text, found){
+  searchLog.push({ text, found, time: Date.now() });
+  searchLog = searchLog.slice(-500);
+  try{ await binUpdateKey(SEARCH_LOG_KEY, searchLog); }catch(e){}
+}
+
+const CLICK_STATS_KEY = 'kisac-click-stats';
+let clickStats = {};
+async function loadClickStats(){
+  try{
+    const all = await binGetAll();
+    clickStats = (all && all[CLICK_STATS_KEY]) || {};
+  }catch(e){ clickStats = {}; }
+}
+async function logClick(name){
+  await loadClickStats();
+  clickStats[name] = (clickStats[name] || 0) + 1;
+  try{ await binUpdateKey(CLICK_STATS_KEY, clickStats); }catch(e){}
 }
 
 async function loadAccessLog(){
@@ -982,22 +1037,26 @@ function renderBoard(){
   if(scored.length === 0){
     if(statusLabel) statusLabel.textContent = 'nema rezultata';
     board.innerHTML = `<div class="empty-msg">Nije pronađen odgovor na to pitanje. Pokušajte drugim rečima, ili se obratite kancelariji MZ Kisač direktno.</div>`;
-    scheduleUnansweredLog(rawQuery);
+    scheduleSearchLog(rawQuery, false);
     return;
   }
   if(statusLabel) statusLabel.textContent = scored.length + (scored.length===1 ? ' rezultat' : ' rezultata');
   board.innerHTML = '';
   scored.forEach((x,idx)=> board.appendChild(makeNote(x.item, idx%2===1)) );
+  scheduleSearchLog(rawQuery, true);
 }
-let unansweredLogTimer = null;
-function scheduleUnansweredLog(rawQuery){
-  clearTimeout(unansweredLogTimer);
+let searchLogTimer = null;
+function scheduleSearchLog(rawQuery, found){
+  clearTimeout(searchLogTimer);
   const text = rawQuery.trim();
   if(text.length < 3) return;
-  unansweredLogTimer = setTimeout(()=>{
+  searchLogTimer = setTimeout(()=>{
     // Loguj samo ako korisnik u međuvremenu nije promenio tekst
     const current = document.getElementById('askInput').value.trim();
-    if(current === text) logUnanswered(text);
+    if(current === text){
+      logSearch(text, found);
+      if(!found) logUnanswered(text);
+    }
   }, 1500);
 }
 function isExpired(item){
@@ -1104,6 +1163,10 @@ async function unlockAdmin(){
     await loadUnanswered();
     renderUnanswered();
     renderAccessLog();
+    await loadVisitStats();
+    await loadSearchLog();
+    await loadClickStats();
+    renderStats();
   }else{
     document.getElementById('pinError').textContent = 'Pogrešna šifra, pokušajte ponovo.';
   }
@@ -1568,7 +1631,60 @@ function renderAccessLog(){
   });
 }
 
-// ---------- events ----------
+function renderStats(){
+  const el = document.getElementById('statsSummary');
+  el.innerHTML = '';
+
+  // Posete
+  const visitBox = document.createElement('div');
+  visitBox.className = 'admin-item';
+  const days = Object.keys(visitStats.byDay || {}).sort().reverse().slice(0,7);
+  const dayLines = days.map(d => `${d}: ${visitStats.byDay[d]}`).join('<br>');
+  visitBox.innerHTML = `
+    <div class="admin-item-body">
+      <div class="note-cat">Posete</div>
+      <div class="note-q">Ukupno: ${visitStats.total || 0}</div>
+      <div class="note-a" style="font-size:0.82rem;">${dayLines || 'Nema podataka po danima.'}</div>
+    </div>
+  `;
+  el.appendChild(visitBox);
+
+  // Najcesce pretrage (grupisano po normalizovanom tekstu)
+  const freq = {};
+  searchLog.forEach(s=>{
+    const key = normalize(s.text);
+    if(!key) return;
+    freq[key] = freq[key] || { text: s.text, count: 0, found: 0 };
+    freq[key].count++;
+    if(s.found) freq[key].found++;
+  });
+  const topSearches = Object.values(freq).sort((a,b)=> b.count - a.count).slice(0, 20);
+  const searchBox = document.createElement('div');
+  searchBox.className = 'admin-item';
+  if(topSearches.length === 0){
+    searchBox.innerHTML = `<div class="admin-item-body"><div class="note-cat">Najčešće pretrage</div><div class="note-a">Nema još zabeleženih pretraga.</div></div>`;
+  }else{
+    const lines = topSearches.map(s => `${escapeHtml(s.text)} — ${s.count}× (${s.found}× pronađeno)`).join('<br>');
+    searchBox.innerHTML = `<div class="admin-item-body"><div class="note-cat">Najčešće pretrage (top 20)</div><div class="note-a" style="font-size:0.85rem;">${lines}</div></div>`;
+  }
+  el.appendChild(searchBox);
+
+  // Klikovi na dugmad
+  const clickLabels = {
+    lista: 'Lista informacija',
+    planirani: 'Planirani radovi i isključenja',
+    trenutne: 'Trenutne informacije',
+    telefoni: 'Važni telefoni',
+    dogadjaji: 'Kulturni događaji'
+  };
+  const clickBox = document.createElement('div');
+  clickBox.className = 'admin-item';
+  const clickLines = Object.keys(clickLabels).map(k => `${clickLabels[k]}: ${clickStats[k] || 0}`).join('<br>');
+  clickBox.innerHTML = `<div class="admin-item-body"><div class="note-cat">Klikovi na dugmad</div><div class="note-a">${clickLines}</div></div>`;
+  el.appendChild(clickBox);
+}
+
+
 document.getElementById('helpToggle').addEventListener('click', ()=>{
   document.getElementById('helpPanel').classList.toggle('hidden');
 });
@@ -1630,13 +1746,13 @@ document.getElementById('oglasiOverlay').addEventListener('click', e=>{
 document.getElementById('adminToggleBtn').onclick = showAdminGate;
 document.getElementById('pinCancel').onclick = showPublic;
 
-document.getElementById('listaBtn').onclick = openListaDrawer;
+document.getElementById('listaBtn').onclick = ()=>{ logClick('lista'); openListaDrawer(); };
 document.getElementById('closeListaBtn').onclick = closeListaDrawer;
 document.getElementById('listaOverlay').addEventListener('click', e=>{
   if(e.target.id === 'listaOverlay') closeListaDrawer();
 });
 
-document.getElementById('planiraniBtn').onclick = openPlaniraniDrawer;
+document.getElementById('planiraniBtn').onclick = ()=>{ logClick('planirani'); openPlaniraniDrawer(); };
 document.getElementById('closePlaniraniBtn').onclick = closePlaniraniDrawer;
 document.getElementById('planiraniOverlay').addEventListener('click', e=>{
   if(e.target.id === 'planiraniOverlay') closePlaniraniDrawer();
@@ -1682,7 +1798,7 @@ async function submitVest(){
 document.getElementById('vestBtn').onclick = submitVest;
 document.getElementById('vestInput').addEventListener('keydown', e=>{ if(e.key==='Enter') submitVest(); });
 
-document.getElementById('hitnoBtn').onclick = openHitnoDrawer;
+document.getElementById('hitnoBtn').onclick = ()=>{ logClick('trenutne'); openHitnoDrawer(); };
 document.getElementById('closeHitnoBtn').onclick = closeHitnoDrawer;
 document.getElementById('hitnoOverlay').addEventListener('click', e=>{
   if(e.target.id === 'hitnoOverlay') closeHitnoDrawer();
@@ -1690,13 +1806,13 @@ document.getElementById('hitnoOverlay').addEventListener('click', e=>{
 document.getElementById('hitnoViewport').addEventListener('mouseenter', pauseHitnoFlow);
 document.getElementById('hitnoViewport').addEventListener('mouseleave', resumeHitnoFlow);
 
-document.getElementById('telefoniBtn').onclick = openTelefoniDrawer;
+document.getElementById('telefoniBtn').onclick = ()=>{ logClick('telefoni'); openTelefoniDrawer(); };
 document.getElementById('closeTelefoniBtn').onclick = closeTelefoniDrawer;
 document.getElementById('telefoniOverlay').addEventListener('click', e=>{
   if(e.target.id === 'telefoniOverlay') closeTelefoniDrawer();
 });
 
-document.getElementById('dogadjajiBtn').onclick = openDogadjajiDrawer;
+document.getElementById('dogadjajiBtn').onclick = ()=>{ logClick('dogadjaji'); openDogadjajiDrawer(); };
 document.getElementById('closeDogadjajiBtn').onclick = closeDogadjajiDrawer;
 document.getElementById('dogadjajiOverlay').addEventListener('click', e=>{
   if(e.target.id === 'dogadjajiOverlay') closeDogadjajiDrawer();
@@ -1739,6 +1855,7 @@ document.getElementById('cancelEditBtn').onclick = resetForm;
   await loadOglasi();
   renderTicker();
   setInterval(pruneOglasi, 60000);
+  logVisit();
 })();
 </script>
 </body>
