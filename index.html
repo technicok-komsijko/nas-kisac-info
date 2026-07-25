@@ -870,7 +870,13 @@ async function loadDogadjaji(){
 async function saveDogadjaji(){
   try{ await binUpdateKey(DOGADJAJI_KEY, dogadjaji); return true; }catch(e){ return false; }
 }
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+function todayStr(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
 function daysUntil(dateStr){
   const today = new Date(todayStr()+'T00:00:00');
   const target = new Date(dateStr+'T00:00:00');
@@ -1080,8 +1086,7 @@ function scheduleSearchLog(rawQuery, found){
 }
 function isExpired(item){
   if(!item.validUntil) return false;
-  const today = new Date().toISOString().slice(0,10);
-  return item.validUntil < today;
+  return item.validUntil < todayStr();
 }
 function makeNote(item, alt){
   const note = document.createElement('div');
