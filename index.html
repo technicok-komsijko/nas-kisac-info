@@ -335,6 +335,7 @@
     <p style="margin:0 0 10px;">📢 <strong>Trenutne informacije</strong> — ono što se dešava upravo sada (npr. zastoj u saobraćaju). Svako može samo da prijavi situaciju u polju ispod dugmadi — bez čekanja na odobrenje.</p>
     <p style="margin:0 0 10px;">📞 <strong>Važni telefoni</strong> — brz spisak ključnih brojeva (MZ, ambulanta, hitne službe...), kliknite na broj da odmah pozovete.</p>
     <p style="margin:0 0 10px;">🎭 <strong>Kulturni događaji</strong> — šta se dešava u selu narednih dana.</p>
+    <p style="margin:0 0 10px;">👶 <strong>Rođeni</strong> i 🕊️ <strong>Preminuli</strong> — vesti iz matične službe o rođenima i preminulima u selu.</p>
     <p style="margin:0 0 10px;">📢 <strong>Mali oglasi</strong> (tiker na vrhu) — kratki oglasi meštana, sami nestaju za 24h. Svako može da doda svoj — samo ukucajte tekst i broj telefona.</p>
     <p style="margin:0;">💬 <strong>Imate pitanje ili predlog?</strong> — ispod pretrage postoji polje gde možete da nam javite šta vam nedostaje.</p>
   </div>
@@ -374,6 +375,8 @@
       <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">📢 Trenutne informacije</button>
       <button id="telefoniBtn" class="btn btn-ghost" style="border-color:var(--sky); color:var(--sky);">📞 Važni telefoni</button>
       <button id="dogadjajiBtn" class="btn btn-ghost" style="border-color:var(--leaf); color:var(--leaf);">🎭 Kulturni događaji</button>
+      <button id="rodjeniBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">👶 Rođeni</button>
+      <button id="preminuliBtn" class="btn btn-ghost" style="border-color:var(--soil-soft); color:var(--soil-soft);">🕊️ Preminuli</button>
     </div>
 
     <div class="ask-card">
@@ -402,6 +405,26 @@
           <button id="closeDogadjajiBtn" class="btn btn-ghost btn-small">Zatvori</button>
         </div>
         <div id="dogadjajiList"></div>
+      </div>
+    </div>
+
+    <div id="rodjeniOverlay" class="oglasi-overlay hidden">
+      <div class="oglasi-drawer">
+        <div class="oglasi-drawer-head">
+          <h3>👶 Rođeni</h3>
+          <button id="closeRodjeniBtn" class="btn btn-ghost btn-small">Zatvori</button>
+        </div>
+        <div id="rodjeniList"></div>
+      </div>
+    </div>
+
+    <div id="preminuliOverlay" class="oglasi-overlay hidden">
+      <div class="oglasi-drawer">
+        <div class="oglasi-drawer-head">
+          <h3>🕊️ Preminuli</h3>
+          <button id="closePreminuliBtn" class="btn btn-ghost btn-small">Zatvori</button>
+        </div>
+        <div id="preminuliList"></div>
       </div>
     </div>
 
@@ -526,6 +549,8 @@
             <option>Odvoz smeća</option>
             <option>Planirani radovi i isključenja</option>
             <option>Trenutne informacije</option>
+            <option>Rođeni</option>
+            <option>Preminuli</option>
             <option>Važni telefoni</option>
             <option>Obaveštenje</option>
             <option>Ostalo</option>
@@ -1639,6 +1664,34 @@ function resumeHitnoFlow(){
   const track = document.querySelector('#hitnoList .ticker-track');
   if(track) track.style.animationPlayState = 'running';
 }
+function openRodjeniDrawer(){
+  const items = faqItems.filter(i=>i.category==='Rođeni' && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  const el = document.getElementById('rodjeniList');
+  if(items.length===0){
+    el.innerHTML = '<div class="empty-msg">Trenutno nema novih vesti o rodjenima.</div>';
+  }else{
+    el.innerHTML = '';
+    items.forEach((item,idx)=> el.appendChild(makeNote(item, idx%2===1)) );
+  }
+  document.getElementById('rodjeniOverlay').classList.remove('hidden');
+}
+function closeRodjeniDrawer(){
+  document.getElementById('rodjeniOverlay').classList.add('hidden');
+}
+function openPreminuliDrawer(){
+  const items = faqItems.filter(i=>i.category==='Preminuli' && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  const el = document.getElementById('preminuliList');
+  if(items.length===0){
+    el.innerHTML = '<div class="empty-msg">Trenutno nema novih obaveštenja.</div>';
+  }else{
+    el.innerHTML = '';
+    items.forEach((item,idx)=> el.appendChild(makeNote(item, idx%2===1)) );
+  }
+  document.getElementById('preminuliOverlay').classList.remove('hidden');
+}
+function closePreminuliDrawer(){
+  document.getElementById('preminuliOverlay').classList.add('hidden');
+}
 function openTelefoniDrawer(){
   const items = faqItems.filter(i=>i.category==='Važni telefoni').sort((a,b)=>a.question.localeCompare(b.question));
   const el = document.getElementById('telefoniList');
@@ -1754,7 +1807,9 @@ function renderStats(){
     planirani: 'Planirani radovi i isključenja',
     trenutne: 'Trenutne informacije',
     telefoni: 'Važni telefoni',
-    dogadjaji: 'Kulturni događaji'
+    dogadjaji: 'Kulturni događaji',
+    rodjeni: 'Rođeni',
+    preminuli: 'Preminuli'
   };
   const clickBox = document.createElement('div');
   clickBox.className = 'admin-item';
@@ -1886,6 +1941,19 @@ document.getElementById('hitnoViewport').addEventListener('mouseenter', pauseHit
 document.getElementById('hitnoViewport').addEventListener('mouseleave', resumeHitnoFlow);
 
 document.getElementById('telefoniBtn').onclick = ()=>{ logClick('telefoni'); openTelefoniDrawer(); };
+
+document.getElementById('rodjeniBtn').onclick = ()=>{ logClick('rodjeni'); openRodjeniDrawer(); };
+document.getElementById('closeRodjeniBtn').onclick = closeRodjeniDrawer;
+document.getElementById('rodjeniOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'rodjeniOverlay') closeRodjeniDrawer();
+});
+
+document.getElementById('preminuliBtn').onclick = ()=>{ logClick('preminuli'); openPreminuliDrawer(); };
+document.getElementById('closePreminuliBtn').onclick = closePreminuliDrawer;
+document.getElementById('preminuliOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'preminuliOverlay') closePreminuliDrawer();
+});
+
 document.getElementById('closeTelefoniBtn').onclick = closeTelefoniDrawer;
 document.getElementById('telefoniOverlay').addEventListener('click', e=>{
   if(e.target.id === 'telefoniOverlay') closeTelefoniDrawer();
