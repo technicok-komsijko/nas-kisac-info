@@ -275,6 +275,21 @@
     .ticker-track.animate{ animation:none; }
   }
 
+  .btn-badge-dot{
+    position:absolute; top:-5px; right:-5px;
+    width:13px; height:13px; border-radius:50%;
+    background:var(--brick);
+    border:2px solid var(--cream);
+    animation:pulseBadge 1.4s ease-in-out infinite;
+  }
+  @keyframes pulseBadge{
+    0%,100%{ transform:scale(1); opacity:1; }
+    50%{ transform:scale(1.35); opacity:0.65; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .btn-badge-dot{ animation:none; }
+  }
+
   .oglasi-overlay{
     position:fixed; inset:0; background:rgba(74,55,40,0.45);
     display:flex; justify-content:flex-end; z-index:100;
@@ -355,7 +370,7 @@
 
     <div style="text-align:center; margin:20px 0 20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
       <button id="listaBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">📋 Lista informacija</button>
-      <button id="planiraniBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">⚠ Planirani radovi i isključenja</button>
+      <button id="planiraniBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick); position:relative;">⚠ Planirani radovi i isključenja<span id="planiraniBadge" class="btn-badge-dot hidden"></span></button>
       <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">📢 Trenutne informacije</button>
       <button id="telefoniBtn" class="btn btn-ghost" style="border-color:var(--sky); color:var(--sky);">📞 Važni telefoni</button>
       <button id="dogadjajiBtn" class="btn btn-ghost" style="border-color:var(--leaf); color:var(--leaf);">🎭 Kulturni događaji</button>
@@ -1034,6 +1049,12 @@ function openListaDrawer(){
 function closeListaDrawer(){
   document.getElementById('listaOverlay').classList.add('hidden');
 }
+function updateBadges(){
+  const badge = document.getElementById('planiraniBadge');
+  if(!badge) return;
+  const hasActive = faqItems.some(i=>i.category==='Planirani radovi i isklju\u010denja' && !isExpired(i));
+  badge.classList.toggle('hidden', !hasActive);
+}
 function renderBoard(){
   const rawQuery = document.getElementById('askInput') ? document.getElementById('askInput').value : '';
   const wrap = document.getElementById('searchResultsWrap');
@@ -1088,6 +1109,18 @@ function isExpired(item){
   if(!item.validUntil) return false;
   return item.validUntil < todayStr();
 }
+function shareInfo(title, text){
+  const fullText = `${title}\n\n${text}\n\nIzvor: Naš Kisač info\nhttps://technicok-komsijko.github.io/nas-kisac-info/`;
+  if(navigator.share){
+    navigator.share({ title: title, text: fullText }).catch(()=>{});
+  }else if(navigator.clipboard){
+    navigator.clipboard.writeText(fullText).then(()=>{
+      alert('Tekst je kopiran — nalepite ga (npr. u Viber, SMS ili email) da podelite.');
+    }).catch(()=>{ window.prompt('Kopirajte tekst za deljenje:', fullText); });
+  }else{
+    window.prompt('Kopirajte tekst za deljenje:', fullText);
+  }
+}
 function makeNote(item, alt){
   const note = document.createElement('div');
   note.className = 'note' + (alt ? ' alt' : '');
@@ -1105,6 +1138,13 @@ function makeNote(item, alt){
     <div class="note-a">${escapeHtml(item.answer)}</div>
     ${phoneLink}
   `;
+  const shareBtn = document.createElement('button');
+  shareBtn.className = 'btn btn-ghost btn-small';
+  shareBtn.style.marginTop = '8px';
+  shareBtn.style.marginLeft = item.phone ? '8px' : '0';
+  shareBtn.textContent = '📤 Podeli';
+  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo(item.question, item.answer); };
+  note.appendChild(shareBtn);
   return note;
 }
 function escapeHtml(s){
@@ -1250,6 +1290,7 @@ async function saveEntry(){
     renderChips();
     renderBoard();
     renderTicker();
+    updateBadges();
   }else{
     statusEl.textContent = 'Greška pri čuvanju, pokušajte ponovo.';
     statusEl.className = 'status-msg err';
@@ -1263,6 +1304,7 @@ async function deleteEntry(id){
   renderChips();
   renderBoard();
   renderTicker();
+  updateBadges();
 }
 function renderAdminList(){
   const list = document.getElementById('adminList');
@@ -1545,6 +1587,12 @@ function makeVestNote(v, alt){
     <div class="note-cat">Prijava meštana · ${timeLabel}</div>
     <div class="note-a">${escapeHtml(v.text)}</div>
   `;
+  const shareBtn = document.createElement('button');
+  shareBtn.className = 'btn btn-ghost btn-small';
+  shareBtn.style.marginTop = '8px';
+  shareBtn.textContent = '📤 Podeli';
+  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo('Trenutna informacija', v.text); };
+  note.appendChild(shareBtn);
   return note;
 }
 
@@ -1621,6 +1669,12 @@ function makeEventCard(d, alt){
     ${mestoStr}
     ${opisStr}
   `;
+  const shareBtn = document.createElement('button');
+  shareBtn.className = 'btn btn-ghost btn-small';
+  shareBtn.style.marginTop = '8px';
+  shareBtn.textContent = '📤 Podeli';
+  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo(d.naziv, `${dateStr}${vremeStr}${d.mesto ? ' — '+d.mesto : ''}${d.opis ? '\n'+d.opis : ''}`); };
+  note.appendChild(shareBtn);
   return note;
 }
 function openDogadjajiDrawer(){
@@ -1875,6 +1929,7 @@ document.getElementById('cancelEditBtn').onclick = resetForm;
   await loadFAQ();
   renderChips();
   renderBoard();
+  updateBadges();
   await loadDogadjaji();
   await loadTrenutneVesti();
   await loadOglasi();
