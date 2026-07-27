@@ -397,6 +397,21 @@
       <div class="status-msg" id="vestStatus"></div>
     </div>
 
+    <div id="shareModalOverlay" class="oglasi-overlay hidden">
+      <div class="oglasi-drawer" style="max-width:480px;">
+        <div class="oglasi-drawer-head">
+          <h3>📤 Podeli</h3>
+          <button id="closeShareModalBtn" class="btn btn-ghost btn-small">Zatvori</button>
+        </div>
+        <p style="color:var(--soil-soft); font-size:0.85rem; margin:0 0 10px;">Kliknite "Kopiraj tekst", zatim ga nalepite (Ctrl+V) gde god želite da podelite (Facebook, Viber, email...).</p>
+        <textarea id="shareModalText" readonly style="width:100%; min-height:180px; padding:12px; border-radius:8px; border:1.5px solid var(--cream-dark); font-family:inherit; font-size:0.9rem; color:var(--soil); background:#fff; resize:vertical;"></textarea>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="copyShareTextBtn">Kopiraj tekst</button>
+        </div>
+        <div class="status-msg" id="shareModalStatus"></div>
+      </div>
+    </div>
+
     <div id="listaOverlay" class="oglasi-overlay hidden">
       <div class="oglasi-drawer">
         <div class="oglasi-drawer-head">
@@ -1147,12 +1162,36 @@ function shareInfo(title, text){
   const fullText = `${title}\n\n${text}\n\nIzvor: Naš Kisač info\nhttps://technicok-komsijko.github.io/nas-kisac-info/`;
   if(navigator.share){
     navigator.share({ title: title, text: fullText }).catch(()=>{});
-  }else if(navigator.clipboard){
-    navigator.clipboard.writeText(fullText).then(()=>{
-      alert('Tekst je kopiran — nalepite ga (npr. u Viber, SMS ili email) da podelite.');
-    }).catch(()=>{ window.prompt('Kopirajte tekst za deljenje:', fullText); });
   }else{
-    window.prompt('Kopirajte tekst za deljenje:', fullText);
+    openShareModal(fullText);
+  }
+}
+function openShareModal(text){
+  const textarea = document.getElementById('shareModalText');
+  textarea.value = text;
+  document.getElementById('shareModalStatus').textContent = '';
+  document.getElementById('shareModalOverlay').classList.remove('hidden');
+  textarea.focus();
+  textarea.select();
+}
+function closeShareModal(){
+  document.getElementById('shareModalOverlay').classList.add('hidden');
+}
+async function copyShareText(){
+  const textarea = document.getElementById('shareModalText');
+  const statusEl = document.getElementById('shareModalStatus');
+  textarea.focus();
+  textarea.select();
+  try{
+    await navigator.clipboard.writeText(textarea.value);
+    statusEl.textContent = 'Kopirano! Sada nalepite (Ctrl+V) gde želite.';
+  }catch(e){
+    try{
+      document.execCommand('copy');
+      statusEl.textContent = 'Kopirano! Sada nalepite (Ctrl+V) gde želite.';
+    }catch(e2){
+      statusEl.textContent = 'Tekst je označen — pritisnite Ctrl+C da ga kopirate.';
+    }
   }
 }
 function makeNote(item, alt){
@@ -1897,6 +1936,12 @@ document.getElementById('oglasiOverlay').addEventListener('click', e=>{
 });
 document.getElementById('adminToggleBtn').onclick = showAdminGate;
 document.getElementById('pinCancel').onclick = showPublic;
+
+document.getElementById('closeShareModalBtn').onclick = closeShareModal;
+document.getElementById('copyShareTextBtn').onclick = copyShareText;
+document.getElementById('shareModalOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'shareModalOverlay') closeShareModal();
+});
 
 document.getElementById('listaBtn').onclick = ()=>{ logClick('lista'); openListaDrawer(); };
 document.getElementById('closeListaBtn').onclick = closeListaDrawer;
