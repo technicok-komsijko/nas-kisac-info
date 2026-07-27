@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Naš Kisač info</title>
+<meta property="og:title" content="Naš Kisač info">
+<meta property="og:description" content="Radno vreme, kontakti, red vožnje, obaveštenja i mali oglasi za selo Kisač — sve na jednom mestu.">
+<meta property="og:image" content="https://technicok-komsijko.github.io/nas-kisac-info/komsijko-share.png">
+<meta property="og:url" content="https://technicok-komsijko.github.io/nas-kisac-info/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Naš Kisač info">
+<meta name="twitter:description" content="Radno vreme, kontakti, red vožnje, obaveštenja i mali oglasi za selo Kisač — sve na jednom mestu.">
+<meta name="twitter:image" content="https://technicok-komsijko.github.io/nas-kisac-info/komsijko-share.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -1825,7 +1834,14 @@ document.getElementById('helpToggle').addEventListener('click', ()=>{
   document.getElementById('helpPanel').classList.toggle('hidden');
 });
 document.getElementById('askBtn').onclick = ()=> renderBoard();
-document.getElementById('askInput').addEventListener('input', ()=> renderBoard());
+let renderBoardTimer = null;
+document.getElementById('askInput').addEventListener('focus', (e)=>{
+  setTimeout(()=> e.target.scrollIntoView({behavior:'smooth', block:'start'}), 300);
+});
+document.getElementById('askInput').addEventListener('input', ()=>{
+  clearTimeout(renderBoardTimer);
+  renderBoardTimer = setTimeout(()=> renderBoard(), 400);
+});
 document.getElementById('askInput').addEventListener('keydown', e=>{ if(e.key==='Enter') e.target.blur(); });
 
 document.getElementById('oglasInput').addEventListener('input', e=>{
