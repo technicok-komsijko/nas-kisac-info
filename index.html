@@ -1041,11 +1041,22 @@ function renderZkAdmin(){
         <div class="note-a" style="font-family:'IBM Plex Mono', monospace; color:var(--sky);">📞 ${escapeHtml(zk.telefon)}</div>
         ${zk.delatnost ? `<div class="note-a">${escapeHtml(zk.delatnost)}</div>` : ''}
       </div>
-      <div class="admin-item-actions">
+      <div class="admin-item-actions" style="flex-direction:column; align-items:stretch;">
+        <button class="btn btn-ghost btn-small" data-editzk="${zk.id}">Izmeni delatnost</button>
         <button class="btn btn-danger btn-small" data-delzk="${zk.id}">Ukloni</button>
       </div>
     `;
     list.appendChild(row);
+  });
+  list.querySelectorAll('[data-editzk]').forEach(b=>b.onclick = async ()=>{
+    const zk = zlatniKomsija.find(z=>z.id===b.dataset.editzk);
+    if(!zk) return;
+    const delatnost = prompt(`Šta radi "${zk.ime}"?`, zk.delatnost || '');
+    if(delatnost === null) return;
+    zk.delatnost = delatnost.trim();
+    await saveZlatniKomsija();
+    renderZkAdmin();
+    renderZlatniKomsija();
   });
   list.querySelectorAll('[data-delzk]').forEach(b=>b.onclick = async ()=>{
     if(!confirm('Ukloniti ovog Zlatnog Komšiju sa javne strane?')) return;
@@ -1702,8 +1713,10 @@ function renderRaniPristup(){
   list.querySelectorAll('[data-pubrp]').forEach(b=>b.onclick = async ()=>{
     const item = raniPristup.find(r=>r.id===b.dataset.pubrp);
     if(!item) return;
+    const delatnost = prompt(`Šta radi "${item.ime}"? (ovo se prikazuje na javnoj kartici — npr. "vodoinstalater", "prevoz nameštaja")`, item.delatnost || '');
+    if(delatnost === null) return; // otkazano
     if(!confirm(`Objaviti "${item.ime}" javno kao Zlatnog Komšiju na sajtu?`)) return;
-    const ok = await publishZlatniKomsija(item.ime, item.telefon, item.delatnost);
+    const ok = await publishZlatniKomsija(item.ime, item.telefon, delatnost.trim());
     if(ok){
       renderRaniPristup();
       renderZlatniKomsija();
