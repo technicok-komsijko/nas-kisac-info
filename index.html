@@ -179,6 +179,30 @@
   .promo-bar .promo-text{ font-size:0.86rem; line-height:1.4; }
   .promo-bar .promo-text strong{ color:var(--wheat-deep); }
 
+  /* ---- Zlatni Komšija kartice ---- */
+  .zk-card{
+    background:linear-gradient(135deg, #fff8e8, var(--paper));
+    border:1.5px solid var(--wheat);
+    border-radius:8px;
+    padding:12px 14px;
+    margin-bottom:9px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+  }
+  .zk-card .zk-badge{
+    display:inline-block; font-size:0.68rem; font-weight:700; letter-spacing:0.04em;
+    text-transform:uppercase; color:var(--wheat-deep); font-family:'IBM Plex Mono', monospace;
+    margin-bottom:3px;
+  }
+  .zk-card .zk-name{ font-weight:700; font-size:0.98rem; margin-bottom:2px; }
+  .zk-card .zk-delatnost{ font-size:0.85rem; color:var(--soil-soft); }
+  .zk-card a.zk-call{
+    flex-shrink:0; padding:8px 14px; background:var(--wheat-deep); color:var(--paper);
+    border-radius:999px; text-decoration:none; font-weight:700; font-size:0.85rem; white-space:nowrap;
+  }
+
   /* ---- Rani pristup teaser ---- */
   .rp-card{
     background:linear-gradient(135deg, #fff8e8, var(--paper));
@@ -373,6 +397,14 @@
         <div class="ticker-empty">Trenutno nema malih oglasa.</div>
       </div>
       <div class="ticker-hint">dodirni za sve oglase</div>
+    </div>
+
+    <div id="zkSection" class="hidden" style="margin-bottom:20px;">
+      <div class="board-title" style="margin:0 0 8px;">
+        <h2>🏅 Naše Zlatne Komšije</h2>
+        <span>majstori i firme sa ranog pristupa Moj Pomoćniku</span>
+      </div>
+      <div id="zkList"></div>
     </div>
 
     <div class="ask-card">
@@ -709,6 +741,10 @@
       <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Majstori i firme koji su se prijavili za rani pristup. Ovo je čekaonica koju samo ti vidiš.</p>
       <div id="raniPristupList"></div>
 
+      <h2 style="font-size:1.05rem; margin:26px 0 10px;">🏅 Objavljeni Zlatni Komšije</h2>
+      <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Ovi su trenutno javno vidljivi na sajtu, u odeljku "Naše Zlatne Komšije". Ovde ih možeš ukloniti kad zatreba.</p>
+      <div id="zkAdminList"></div>
+
       <h2 style="font-size:1.05rem; margin:26px 0 10px;">Predlozi meštana</h2>
       <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Poruke koje su meštani namerno poslali o tome šta im nedostaje.</p>
       <div id="predloziList"></div>
@@ -850,6 +886,7 @@ async function handleImportFile(e){
     await loadUnanswered(); renderUnanswered();
     await loadAccessLog(); renderAccessLog();
     await loadRaniPristup(); renderRaniPristup();
+    await loadZlatniKomsija(); renderZkAdmin(); renderZlatniKomsija();
     statusEl.textContent = 'Uvezeno i osveženo.';
     statusEl.className = 'status-msg';
   }else{
@@ -941,6 +978,82 @@ async function postRaniPristup(ime, telefon, delatnost, napomena){
   }, 500);
   if(result){ raniPristup = result; return true; }
   return false;
+}
+
+const ZLATNI_KOMSIJA_KEY = 'kisac-zlatni-komsija';
+let zlatniKomsija = [];
+async function loadZlatniKomsija(){
+  try{
+    const all = await binGetAll();
+    zlatniKomsija = (all && all[ZLATNI_KOMSIJA_KEY]) || [];
+  }catch(e){ zlatniKomsija = []; }
+}
+async function saveZlatniKomsija(){
+  try{ await binUpdateKey(ZLATNI_KOMSIJA_KEY, zlatniKomsija); }catch(e){}
+}
+async function publishZlatniKomsija(ime, telefon, delatnost){
+  const result = await binAppendToArray(ZLATNI_KOMSIJA_KEY, {
+    id:uid(), ime, telefon, delatnost: delatnost || '', time:Date.now()
+  });
+  if(result){ zlatniKomsija = result; return true; }
+  return false;
+}
+function renderZlatniKomsija(){
+  const section = document.getElementById('zkSection');
+  const list = document.getElementById('zkList');
+  if(!section || !list) return;
+  if(zlatniKomsija.length === 0){
+    section.classList.add('hidden');
+    return;
+  }
+  section.classList.remove('hidden');
+  list.innerHTML = '';
+  zlatniKomsija.slice().sort((a,b)=>b.time-a.time).forEach(zk=>{
+    const card = document.createElement('div');
+    card.className = 'zk-card';
+    card.innerHTML = `
+      <div>
+        <div class="zk-badge">🏅 Zlatni Komšija</div>
+        <div class="zk-name">${escapeHtml(zk.ime)}</div>
+        ${zk.delatnost ? `<div class="zk-delatnost">${escapeHtml(zk.delatnost)}</div>` : ''}
+      </div>
+      <a class="zk-call" href="tel:${escapeHtml(zk.telefon.replace(/\s+/g,''))}">📞 Pozovi</a>
+    `;
+    list.appendChild(card);
+  });
+}
+function renderZkAdmin(){
+  const list = document.getElementById('zkAdminList');
+  if(!list) return;
+  if(zlatniKomsija.length === 0){
+    list.innerHTML = '<div class="empty-msg">Još nema objavljenih Zlatnih Komšija.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  zlatniKomsija.slice().sort((a,b)=>b.time-a.time).forEach(zk=>{
+    const row = document.createElement('div');
+    row.className = 'admin-item';
+    const timeStr = new Date(zk.time).toLocaleString('sr-RS');
+    row.innerHTML = `
+      <div class="admin-item-body">
+        <div class="note-cat">${timeStr}</div>
+        <div class="note-q">${escapeHtml(zk.ime)}</div>
+        <div class="note-a" style="font-family:'IBM Plex Mono', monospace; color:var(--sky);">📞 ${escapeHtml(zk.telefon)}</div>
+        ${zk.delatnost ? `<div class="note-a">${escapeHtml(zk.delatnost)}</div>` : ''}
+      </div>
+      <div class="admin-item-actions">
+        <button class="btn btn-danger btn-small" data-delzk="${zk.id}">Ukloni</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('[data-delzk]').forEach(b=>b.onclick = async ()=>{
+    if(!confirm('Ukloniti ovog Zlatnog Komšiju sa javne strane?')) return;
+    zlatniKomsija = zlatniKomsija.filter(z=>z.id!==b.dataset.delzk);
+    await saveZlatniKomsija();
+    renderZkAdmin();
+    renderZlatniKomsija();
+  });
 }
 
 const VISIT_STATS_KEY = 'kisac-visit-stats';
@@ -1391,6 +1504,7 @@ async function unlockAdmin(){
       searchLog = all[SEARCH_LOG_KEY] || [];
       clickStats = all[CLICK_STATS_KEY] || {};
       raniPristup = all[RANI_PRISTUP_KEY] || [];
+      zlatniKomsija = all[ZLATNI_KOMSIJA_KEY] || [];
     }
     binSetAll(all).catch(()=>{});
   }
@@ -1406,6 +1520,7 @@ async function unlockAdmin(){
     renderAccessLog();
     renderStats();
     renderRaniPristup();
+    renderZkAdmin();
   }else{
     document.getElementById('pinError').textContent = 'Pogrešna šifra, pokušajte ponovo.';
   }
@@ -1565,6 +1680,10 @@ function renderRaniPristup(){
     const timeStr = new Date(item.time).toLocaleString('sr-RS');
     const delatnostLine = item.delatnost ? `<div class="note-a" style="margin-top:3px;">${escapeHtml(item.delatnost)}</div>` : '';
     const napomenaLine = item.napomena ? `<div class="note-a" style="margin-top:3px; font-style:italic;">${escapeHtml(item.napomena)}</div>` : '';
+    const alreadyPublished = zlatniKomsija.some(zk => zk.telefon === item.telefon);
+    const publishBtn = alreadyPublished
+      ? `<button class="btn btn-ghost btn-small" disabled style="opacity:0.6;">✅ Objavljeno</button>`
+      : `<button class="btn btn-primary btn-small" data-pubrp="${item.id}">📢 Objavi kao Zlatni Komšija</button>`;
     row.innerHTML = `
       <div class="admin-item-body">
         <div class="note-cat">${timeStr}</div>
@@ -1573,11 +1692,24 @@ function renderRaniPristup(){
         ${delatnostLine}
         ${napomenaLine}
       </div>
-      <div class="admin-item-actions">
+      <div class="admin-item-actions" style="flex-direction:column; align-items:stretch;">
+        ${publishBtn}
         <button class="btn btn-danger btn-small" data-delrp="${item.id}">Obriši</button>
       </div>
     `;
     list.appendChild(row);
+  });
+  list.querySelectorAll('[data-pubrp]').forEach(b=>b.onclick = async ()=>{
+    const item = raniPristup.find(r=>r.id===b.dataset.pubrp);
+    if(!item) return;
+    if(!confirm(`Objaviti "${item.ime}" javno kao Zlatnog Komšiju na sajtu?`)) return;
+    const ok = await publishZlatniKomsija(item.ime, item.telefon, item.delatnost);
+    if(ok){
+      renderRaniPristup();
+      renderZlatniKomsija();
+    }else{
+      alert('Greška pri objavljivanju, pokušajte ponovo.');
+    }
   });
   list.querySelectorAll('[data-delrp]').forEach(b=>b.onclick = async ()=>{
     raniPristup = raniPristup.filter(r=>r.id!==b.dataset.delrp);
@@ -2264,11 +2396,13 @@ document.getElementById('cancelEditBtn').onclick = resetForm;
     pruneOglasi();
     pruneTrenutneVesti();
     visitStats = all[VISIT_STATS_KEY] || { total: 0, byDay: {} };
+    zlatniKomsija = all[ZLATNI_KOMSIJA_KEY] || [];
   }
   renderChips();
   renderBoard();
   updateBadges();
   renderTicker();
+  renderZlatniKomsija();
   setInterval(pruneOglasi, 60000);
   // Belezenje posete se radi odvojeno, sa sopstvenim svezim citanjem baze
   // neposredno pre upisa (umesto ponovne upotrebe podataka ucitanih gore) —
