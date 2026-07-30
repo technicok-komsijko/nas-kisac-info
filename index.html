@@ -1024,7 +1024,7 @@ function renderZlatniKomsija(){
           <div class="zk-name">${escapeHtml(zk.ime)}</div>
           ${zk.delatnost ? `<div class="zk-delatnost">${escapeHtml(zk.delatnost)}</div>` : ''}
         </div>
-        <a class="zk-call" href="tel:${escapeHtml(zk.telefon.replace(/\s+/g,''))}">📞 Pozovi</a>
+        <a class="zk-call" href="tel:${escapeHtml(zk.telefon.replace(/\s+/g,''))}">📞 ${escapeHtml(zk.telefon)}</a>
       </div>
       ${zk.opis ? `<div class="zk-opis">${escapeHtml(zk.opis)}</div>` : ''}
     `;
