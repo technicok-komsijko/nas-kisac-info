@@ -1042,7 +1042,7 @@ function renderZkAdmin(){
   zlatniKomsija.slice().sort((a,b)=>b.time-a.time).forEach(zk=>{
     const row = document.createElement('div');
     row.className = 'admin-item';
-    const timeStr = new Date(zk.time).toLocaleString('sr-RS');
+    const timeStr = new Date(zk.time).toLocaleString('sr-Latn-RS');
     row.innerHTML = `
       <div class="admin-item-body">
         <div class="note-cat">${timeStr}</div>
@@ -1669,7 +1669,7 @@ function renderAdminOglasi(){
   oglasi.slice().sort((a,b)=>b.time-a.time).forEach(item=>{
     const row = document.createElement('div');
     row.className = 'admin-item';
-    const timeStr = new Date(item.time).toLocaleString('sr-RS');
+    const timeStr = new Date(item.time).toLocaleString('sr-Latn-RS');
     row.innerHTML = `
       <div class="admin-item-body">
         <div class="note-cat">${timeStr}</div>
@@ -1701,7 +1701,7 @@ function renderRaniPristup(){
   raniPristup.slice().sort((a,b)=>b.time-a.time).forEach(item=>{
     const row = document.createElement('div');
     row.className = 'admin-item';
-    const timeStr = new Date(item.time).toLocaleString('sr-RS');
+    const timeStr = new Date(item.time).toLocaleString('sr-Latn-RS');
     const delatnostLine = item.delatnost ? `<div class="note-a" style="margin-top:3px;">${escapeHtml(item.delatnost)}</div>` : '';
     const napomenaLine = item.napomena ? `<div class="note-a" style="margin-top:3px; font-style:italic;">${escapeHtml(item.napomena)}</div>` : '';
     const alreadyPublished = zlatniKomsija.some(zk => zk.telefon === item.telefon);
@@ -1845,7 +1845,7 @@ function renderUnanswered(){
   unanswered.slice().reverse().forEach(item=>{
     const row = document.createElement('div');
     row.className = 'admin-item';
-    const timeStr = new Date(item.time).toLocaleString('sr-RS');
+    const timeStr = new Date(item.time).toLocaleString('sr-Latn-RS');
     row.innerHTML = `
       <div class="admin-item-body">
         <div class="note-cat">${timeStr}</div>
@@ -1879,7 +1879,7 @@ function renderPredlozi(){
   predlozi.slice().reverse().forEach(item=>{
     const row = document.createElement('div');
     row.className = 'admin-item';
-    const timeStr = new Date(item.time).toLocaleString('sr-RS');
+    const timeStr = new Date(item.time).toLocaleString('sr-Latn-RS');
     let contactHtml = '';
     if(item.contact){
       const isEmail = item.contact.includes('@');
@@ -2056,7 +2056,7 @@ function makeEventCard(d, alt){
   note.className = 'note' + (alt ? ' alt' : '');
   const days = daysUntil(d.datum);
   const dateObj = new Date(d.datum+'T00:00:00');
-  const dateStr = dateObj.toLocaleDateString('sr-RS', {day:'numeric', month:'long'});
+  const dateStr = dateObj.toLocaleDateString('sr-Latn-RS', {day:'numeric', month:'long'});
   const vremeStr = d.vreme ? `, ${escapeHtml(d.vreme)}` : '';
   const mestoStr = d.mesto ? `<div class="note-a" style="margin-top:2px;">📍 ${escapeHtml(d.mesto)}</div>` : '';
   const opisStr = d.opis ? `<div class="note-a" style="margin-top:6px;">${escapeHtml(d.opis)}</div>` : '';
@@ -2099,7 +2099,7 @@ function renderAccessLog(){
   accessLog.slice().reverse().slice(0,30).forEach(entry=>{
     const row = document.createElement('div');
     row.className = 'admin-item';
-    const timeStr = new Date(entry.time).toLocaleString('sr-RS');
+    const timeStr = new Date(entry.time).toLocaleString('sr-Latn-RS');
     const label = entry.success
       ? '<span style="color:var(--leaf); font-weight:700;">uspešna prijava</span>'
       : '<span style="color:var(--brick); font-weight:700;">pogrešna šifra</span>';
