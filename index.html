@@ -187,6 +187,11 @@
     padding:12px 14px;
     margin-bottom:9px;
     display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .zk-card-top{
+    display:flex;
     justify-content:space-between;
     align-items:center;
     gap:12px;
@@ -198,6 +203,7 @@
   }
   .zk-card .zk-name{ font-weight:700; font-size:0.98rem; margin-bottom:2px; }
   .zk-card .zk-delatnost{ font-size:0.85rem; color:var(--soil-soft); }
+  .zk-card .zk-opis{ font-size:0.88rem; line-height:1.5; color:var(--soil); white-space:pre-wrap; }
   .zk-card a.zk-call{
     flex-shrink:0; padding:8px 14px; background:var(--wheat-deep); color:var(--paper);
     border-radius:999px; text-decoration:none; font-weight:700; font-size:0.85rem; white-space:nowrap;
@@ -991,9 +997,9 @@ async function loadZlatniKomsija(){
 async function saveZlatniKomsija(){
   try{ await binUpdateKey(ZLATNI_KOMSIJA_KEY, zlatniKomsija); }catch(e){}
 }
-async function publishZlatniKomsija(ime, telefon, delatnost){
+async function publishZlatniKomsija(ime, telefon, delatnost, opis){
   const result = await binAppendToArray(ZLATNI_KOMSIJA_KEY, {
-    id:uid(), ime, telefon, delatnost: delatnost || '', time:Date.now()
+    id:uid(), ime, telefon, delatnost: delatnost || '', opis: opis || '', time:Date.now()
   });
   if(result){ zlatniKomsija = result; return true; }
   return false;
@@ -1012,12 +1018,15 @@ function renderZlatniKomsija(){
     const card = document.createElement('div');
     card.className = 'zk-card';
     card.innerHTML = `
-      <div>
-        <div class="zk-badge">🏅 Zlatni Komšija</div>
-        <div class="zk-name">${escapeHtml(zk.ime)}</div>
-        ${zk.delatnost ? `<div class="zk-delatnost">${escapeHtml(zk.delatnost)}</div>` : ''}
+      <div class="zk-card-top">
+        <div>
+          <div class="zk-badge">🏅 Zlatni Komšija</div>
+          <div class="zk-name">${escapeHtml(zk.ime)}</div>
+          ${zk.delatnost ? `<div class="zk-delatnost">${escapeHtml(zk.delatnost)}</div>` : ''}
+        </div>
+        <a class="zk-call" href="tel:${escapeHtml(zk.telefon.replace(/\s+/g,''))}">📞 Pozovi</a>
       </div>
-      <a class="zk-call" href="tel:${escapeHtml(zk.telefon.replace(/\s+/g,''))}">📞 Pozovi</a>
+      ${zk.opis ? `<div class="zk-opis">${escapeHtml(zk.opis)}</div>` : ''}
     `;
     list.appendChild(card);
   });
@@ -1040,9 +1049,10 @@ function renderZkAdmin(){
         <div class="note-q">${escapeHtml(zk.ime)}</div>
         <div class="note-a" style="font-family:'IBM Plex Mono', monospace; color:var(--sky);">📞 ${escapeHtml(zk.telefon)}</div>
         ${zk.delatnost ? `<div class="note-a">${escapeHtml(zk.delatnost)}</div>` : ''}
+        ${zk.opis ? `<div class="note-a" style="white-space:pre-wrap; margin-top:4px;">${escapeHtml(zk.opis)}</div>` : ''}
       </div>
       <div class="admin-item-actions" style="flex-direction:column; align-items:stretch;">
-        <button class="btn btn-ghost btn-small" data-editzk="${zk.id}">Izmeni delatnost</button>
+        <button class="btn btn-ghost btn-small" data-editzk="${zk.id}">Izmeni tekst</button>
         <button class="btn btn-danger btn-small" data-delzk="${zk.id}">Ukloni</button>
       </div>
     `;
@@ -1051,9 +1061,12 @@ function renderZkAdmin(){
   list.querySelectorAll('[data-editzk]').forEach(b=>b.onclick = async ()=>{
     const zk = zlatniKomsija.find(z=>z.id===b.dataset.editzk);
     if(!zk) return;
-    const delatnost = prompt(`Šta radi "${zk.ime}"?`, zk.delatnost || '');
+    const delatnost = prompt(`Kratka delatnost za "${zk.ime}" (npr. "Vodoinstalater"):`, zk.delatnost || '');
     if(delatnost === null) return;
+    const opis = prompt(`Duži opisni tekst (opciono, prikazuje se ispod delatnosti na kartici):`, zk.opis || '');
+    if(opis === null) return;
     zk.delatnost = delatnost.trim();
+    zk.opis = opis.trim();
     await saveZlatniKomsija();
     renderZkAdmin();
     renderZlatniKomsija();
@@ -1713,10 +1726,12 @@ function renderRaniPristup(){
   list.querySelectorAll('[data-pubrp]').forEach(b=>b.onclick = async ()=>{
     const item = raniPristup.find(r=>r.id===b.dataset.pubrp);
     if(!item) return;
-    const delatnost = prompt(`Šta radi "${item.ime}"? (ovo se prikazuje na javnoj kartici — npr. "vodoinstalater", "prevoz nameštaja")`, item.delatnost || '');
+    const delatnost = prompt(`Kratka delatnost za "${item.ime}" (npr. "Vodoinstalater"):`, item.delatnost || '');
     if(delatnost === null) return; // otkazano
+    const opis = prompt(`Duži opisni tekst (opciono, prikazuje se ispod delatnosti na kartici):`, item.napomena || '');
+    if(opis === null) return; // otkazano
     if(!confirm(`Objaviti "${item.ime}" javno kao Zlatnog Komšiju na sajtu?`)) return;
-    const ok = await publishZlatniKomsija(item.ime, item.telefon, delatnost.trim());
+    const ok = await publishZlatniKomsija(item.ime, item.telefon, delatnost.trim(), opis.trim());
     if(ok){
       renderRaniPristup();
       renderZlatniKomsija();
