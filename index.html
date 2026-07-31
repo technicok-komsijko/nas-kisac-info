@@ -667,19 +667,19 @@
           <input type="text" id="fQuestion" placeholder="npr. Radno vreme ambulante">
         </div>
         <div class="field">
-          <label for="fCategory">Kategorija</label>
-          <select id="fCategory">
-            <option>Radno vreme</option>
-            <option>Kontakt</option>
-            <option>Odvoz smeća</option>
-            <option>Planirani radovi i isključenja</option>
-            <option>Trenutne informacije</option>
-            <option>Rođeni</option>
-            <option>Preminuli</option>
-            <option>Važni telefoni</option>
-            <option>Obaveštenje</option>
-            <option>Ostalo</option>
-          </select>
+          <label>Kategorija (možeš izabrati više)</label>
+          <div id="fCategoryGroup" style="display:flex; flex-wrap:wrap; gap:8px;">
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Radno vreme"> Radno vreme</label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Kontakt"> Kontakt</label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Odvoz smeća"> Odvoz smeća</label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Planirani radovi i isključenja"> Planirani radovi i isključenja</label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Trenutne informacije"> Trenutne informacije</label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Rođeni"> Rođeni</label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Preminuli"> Preminuli</label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Važni telefoni"> Važni telefoni</label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Obaveštenje"> Obaveštenje</label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.88rem; font-weight:normal; background:#fff; border:1.5px solid var(--cream-dark); border-radius:7px; padding:7px 10px; cursor:pointer;"><input type="checkbox" name="fCat" value="Ostalo"> Ostalo</label>
+          </div>
         </div>
         <div class="field">
           <label for="fAnswer">Odgovor</label>
@@ -915,6 +915,13 @@ function normalize(s){
     .replace(/\s+/g,' ').trim();
 }
 function uid(){ return 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+// Vraća niz kategorija za stavku, bez obzira da li je sačuvana na stari (jedna kategorija)
+// ili novi način (categories niz) — omogućava punu kompatibilnost sa postojećim podacima.
+function getCats(item){
+  if(item.categories && item.categories.length) return item.categories;
+  if(item.category) return [item.category];
+  return [];
+}
 
 // ---------- storage ----------
 async function loadFAQ(){
@@ -1282,9 +1289,9 @@ function closeOglasiDrawer(){
 function renderChips(){
   const row = document.getElementById('chipRow');
   row.innerHTML = '';
-  const cats = [...new Set(faqItems.map(i=>i.category))].slice(0,5);
+  const cats = [...new Set(faqItems.flatMap(i=>getCats(i)))].slice(0,5);
   cats.forEach(cat=>{
-    const item = faqItems.find(i=>i.category===cat);
+    const item = faqItems.find(i=>getCats(i).includes(cat));
     const btn = document.createElement('button');
     btn.className = 'chip';
     btn.textContent = cat;
@@ -1296,7 +1303,7 @@ function renderChips(){
 // ---------- public: board ----------
 function renderGroupedInto(container){
   const byCat = {};
-  faqItems.forEach(i=>{ (byCat[i.category] = byCat[i.category]||[]).push(i); });
+  faqItems.forEach(i=>{ getCats(i).forEach(cat=>{ (byCat[cat] = byCat[cat]||[]).push(i); }); });
   container.innerHTML = '';
   Object.keys(byCat).forEach(cat=>{
     const group = document.createElement('div');
@@ -1325,7 +1332,7 @@ function closeListaDrawer(){
 function updateBadges(){
   const badge = document.getElementById('planiraniBadge');
   if(!badge) return;
-  const hasActive = faqItems.some(i=>i.category==='Planirani radovi i isklju\u010denja' && !isExpired(i));
+  const hasActive = faqItems.some(i=>getCats(i).includes('Planirani radovi i isklju\u010denja') && !isExpired(i));
   badge.classList.toggle('hidden', !hasActive);
 }
 function renderBoard(){
@@ -1429,7 +1436,7 @@ function makeNote(item, alt){
     : '';
   note.innerHTML = `
     <div class="pin"></div>
-    <div class="note-cat">${escapeHtml(item.category)}</div>
+    <div class="note-cat">${escapeHtml(getCats(item).join(" · "))}</div>
     ${warning}
     <div class="note-q">${escapeHtml(item.question)}</div>
     <div class="note-a">${escapeHtml(item.answer)}</div>
@@ -1478,7 +1485,7 @@ function fuzzyMatch(word, hayWords){
 const STOPWORDS = new Set(['je','su','na','za','kad','kada','ali','ili','da','ne','li','se','sa','od','do','ka','ti','vi','mi','ja','on','ona','oni','taj','ta','to','ce','će','bi','bio','bila','bilo','iz','po','pri','pod','nad','uz','bez','kod','ako','sto','što','ko','koje','koji','koja']);
 function scoreItem(queryNorm, item){
   const qWords = queryNorm.split(' ').filter(Boolean);
-  const hay = normalize(item.question + ' ' + item.answer + ' ' + item.category + ' ' + (item.keywords||''));
+  const hay = normalize(item.question + ' ' + item.answer + ' ' + getCats(item).join(' ') + ' ' + (item.keywords||''));
   const hayWords = hay.split(' ').filter(Boolean);
   let score = 0;
   qWords.forEach(w=>{
@@ -1555,7 +1562,7 @@ function resetForm(){
   editingId = null;
   document.getElementById('formTitle').textContent = 'Dodaj novu informaciju';
   document.getElementById('fQuestion').value = '';
-  document.getElementById('fCategory').value = 'Radno vreme';
+  document.querySelectorAll('input[name="fCat"]').forEach(cb=>{ cb.checked = (cb.value === 'Radno vreme'); });
   document.getElementById('fAnswer').value = '';
   document.getElementById('fPhone').value = '';
   document.getElementById('fKeywords').value = '';
@@ -1566,7 +1573,8 @@ function fillFormForEdit(item){
   editingId = item.id;
   document.getElementById('formTitle').textContent = 'Izmeni informaciju';
   document.getElementById('fQuestion').value = item.question;
-  document.getElementById('fCategory').value = item.category;
+  const cats = getCats(item);
+  document.querySelectorAll('input[name="fCat"]').forEach(cb=>{ cb.checked = cats.includes(cb.value); });
   document.getElementById('fAnswer').value = item.answer;
   document.getElementById('fPhone').value = item.phone || '';
   document.getElementById('fKeywords').value = item.keywords || '';
@@ -1577,7 +1585,7 @@ function fillFormForEdit(item){
 async function saveEntry(){
   const question = document.getElementById('fQuestion').value.trim();
   const answer = document.getElementById('fAnswer').value.trim();
-  const category = document.getElementById('fCategory').value;
+  const categories = Array.from(document.querySelectorAll('input[name="fCat"]:checked')).map(cb=>cb.value);
   const phone = document.getElementById('fPhone').value.trim();
   const keywords = document.getElementById('fKeywords').value.trim();
   const validUntil = document.getElementById('fValidUntil').value;
@@ -1588,11 +1596,17 @@ async function saveEntry(){
     statusEl.className = 'status-msg err';
     return;
   }
+  if(categories.length === 0){
+    statusEl.textContent = 'Izaberite bar jednu kategoriju.';
+    statusEl.className = 'status-msg err';
+    return;
+  }
+  const category = categories[0]; // zadržano radi kompatibilnosti sa starijim delovima koda
   if(editingId){
     const idx = faqItems.findIndex(i=>i.id===editingId);
-    if(idx>-1) faqItems[idx] = {...faqItems[idx], question, answer, category, phone, keywords, validUntil};
+    if(idx>-1) faqItems[idx] = {...faqItems[idx], question, answer, category, categories, phone, keywords, validUntil};
   }else{
-    faqItems.push({id:uid(), question, answer, category, phone, keywords, validUntil, updated:Date.now()});
+    faqItems.push({id:uid(), question, answer, category, categories, phone, keywords, validUntil, updated:Date.now()});
   }
   statusEl.textContent = 'Čuvanje…';
   statusEl.className = 'status-msg';
@@ -1627,7 +1641,7 @@ function renderAdminList(){
     return;
   }
   list.innerHTML = '';
-  faqItems.slice().sort((a,b)=>a.category.localeCompare(b.category)).forEach(item=>{
+  faqItems.slice().sort((a,b)=>getCats(a).join(',').localeCompare(getCats(b).join(','))).forEach(item=>{
     const row = document.createElement('div');
     row.className = 'admin-item';
     const validLine = item.validUntil
@@ -1638,7 +1652,7 @@ function renderAdminList(){
       : '';
     row.innerHTML = `
       <div class="admin-item-body">
-        <div class="note-cat">${escapeHtml(item.category)}</div>
+        <div class="note-cat">${escapeHtml(getCats(item).join(" · "))}</div>
         <div class="note-q">${escapeHtml(item.question)}</div>
         <div class="note-a">${escapeHtml(item.answer)}</div>
         ${phoneLine}
@@ -1911,7 +1925,7 @@ function renderPredlozi(){
 }
 
 function openPlaniraniDrawer(){
-  const items = faqItems.filter(i=>i.category==='Planirani radovi i isključenja' && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  const items = faqItems.filter(i=>getCats(i).includes('Planirani radovi i isključenja') && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
   const el = document.getElementById('planiraniList');
   if(items.length===0){
     el.innerHTML = '<div class="empty-msg">Trenutno nema najavljenih radova ni isključenja.</div>';
@@ -1968,7 +1982,7 @@ function makeVestNote(v, alt){
 
 function openHitnoDrawer(){
   pruneTrenutneVesti();
-  const faqPart = faqItems.filter(i=>i.category==='Trenutne informacije' && !isExpired(i))
+  const faqPart = faqItems.filter(i=>getCats(i).includes('Trenutne informacije') && !isExpired(i))
     .map(i => ({ time:(i.updated||0), node: () => makeNote(i, false) }));
   const vestPart = trenutneVesti
     .map(v => ({ time:v.time, node: () => makeVestNote(v, false) }));
@@ -2010,7 +2024,7 @@ function resumeHitnoFlow(){
   if(track) track.style.animationPlayState = 'running';
 }
 function openRodjeniDrawer(){
-  const items = faqItems.filter(i=>i.category==='Rođeni' && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  const items = faqItems.filter(i=>getCats(i).includes('Rođeni') && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
   const el = document.getElementById('rodjeniList');
   if(items.length===0){
     el.innerHTML = '<div class="empty-msg">Trenutno nema novih vesti o rodjenima.</div>';
@@ -2024,7 +2038,7 @@ function closeRodjeniDrawer(){
   document.getElementById('rodjeniOverlay').classList.add('hidden');
 }
 function openPreminuliDrawer(){
-  const items = faqItems.filter(i=>i.category==='Preminuli' && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  const items = faqItems.filter(i=>getCats(i).includes('Preminuli') && !isExpired(i)).sort((a,b)=>(b.updated||0)-(a.updated||0));
   const el = document.getElementById('preminuliList');
   if(items.length===0){
     el.innerHTML = '<div class="empty-msg">Trenutno nema novih obaveštenja.</div>';
@@ -2038,7 +2052,7 @@ function closePreminuliDrawer(){
   document.getElementById('preminuliOverlay').classList.add('hidden');
 }
 function openTelefoniDrawer(){
-  const items = faqItems.filter(i=>i.category==='Važni telefoni').sort((a,b)=>a.question.localeCompare(b.question));
+  const items = faqItems.filter(i=>getCats(i).includes('Važni telefoni')).sort((a,b)=>a.question.localeCompare(b.question));
   const el = document.getElementById('telefoniList');
   if(items.length===0){
     el.innerHTML = '<div class="empty-msg">Trenutno nema unetih važnih telefona.</div>';
