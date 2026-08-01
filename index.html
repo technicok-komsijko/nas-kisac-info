@@ -441,6 +441,7 @@
       <button id="rodjeniBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">👶 Rođeni</button>
       <button id="preminuliBtn" class="btn btn-ghost" style="border-color:var(--soil-soft); color:var(--soil-soft);">🕊️ Preminuli</button>
       <button id="mojPomocnikBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">🤝 Moj Pomoćnik</button>
+      <button id="bubenikBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">🥁 Kysácski bubeník</button>
     </div>
 
     <div class="ask-card">
@@ -530,6 +531,35 @@
           </div>
           <p style="margin:14px 0 0;">Aplikacija je trenutno u razvoju (MVP/test faza) — testira se i doteruje pre nego što bude dostupna svima. Prijavom za rani pristup ili testiranje pomažete da bude bolja kad zvanično krene.</p>
           <p style="margin:10px 0 0; color:var(--soil-soft); font-size:0.85rem;">Prijavite se za rani pristup u polju pri dnu stranice i budite među prvima.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="bubenikOverlay" class="oglasi-overlay hidden">
+      <div class="oglasi-drawer">
+        <div class="oglasi-drawer-head">
+          <h3>🥁 Kysácski bubeník</h3>
+          <button id="closeBubenikBtn" class="btn btn-ghost btn-small">Zatvori</button>
+        </div>
+        <div style="font-size:0.92rem; line-height:1.6;">
+          <p style="margin:0 0 12px;"><strong>Kysácski bubeník / Kisački dobošar</strong> — planirane digitalne novine za Kisač. Mesto gde ćemo pratiti vesti, dešavanja i priče iz sela, na srpskom i slovačkom jeziku.</p>
+          <p style="margin:0 0 12px;">Ako želite da pišete za novine — bilo da podelite tradicionalni recept, vesti iz svog udruženja, priču iz sela, ili bilo šta drugo što vredi ispričati — javite se!</p>
+          <p style="margin:0 0 16px; color:var(--soil-soft); font-size:0.85rem;">Projekat je trenutno u ranoj fazi razvoja. Kad krene, ovde ćete naći link.</p>
+        </div>
+        <div class="rp-card" style="margin-top:0;">
+          <h3 style="font-size:0.98rem;">✍️ Prijavite se da pišete</h3>
+          <p>Ostavite ime i kontakt — javićemo se kad novine budu spremne za prve priloge.</p>
+          <div class="rp-field">
+            <input type="text" id="bkIme" maxlength="80" placeholder="Ime i prezime" autocomplete="off">
+          </div>
+          <div class="rp-field">
+            <input type="text" id="bkKontakt" maxlength="80" placeholder="Telefon ili email" autocomplete="off">
+          </div>
+          <div class="rp-field">
+            <input type="text" id="bkTema" maxlength="150" placeholder="O čemu biste želeli da pišete (opciono)" autocomplete="off">
+          </div>
+          <button class="btn btn-primary" id="bkBtn" style="width:100%;">Prijavi se</button>
+          <div class="status-msg" id="bkStatus"></div>
         </div>
       </div>
     </div>
@@ -751,6 +781,10 @@
       <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Ovi su trenutno javno vidljivi na sajtu, u odeljku "Naše Zlatne Komšije". Ovde ih možeš ukloniti kad zatreba.</p>
       <div id="zkAdminList"></div>
 
+      <h2 style="font-size:1.05rem; margin:26px 0 10px;">🥁 Prijave saradnika — Kysácski bubeník</h2>
+      <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Meštani zainteresovani da pišu za novine. Ovo je čekaonica koju samo ti vidiš.</p>
+      <div id="bubenikAdminList"></div>
+
       <h2 style="font-size:1.05rem; margin:26px 0 10px;">Predlozi meštana</h2>
       <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Poruke koje su meštani namerno poslali o tome šta im nedostaje.</p>
       <div id="predloziList"></div>
@@ -893,6 +927,7 @@ async function handleImportFile(e){
     await loadAccessLog(); renderAccessLog();
     await loadRaniPristup(); renderRaniPristup();
     await loadZlatniKomsija(); renderZkAdmin(); renderZlatniKomsija();
+    await loadBubenikPrijave(); renderBubenikAdmin();
     statusEl.textContent = 'Uvezeno i osveženo.';
     statusEl.className = 'status-msg';
   }else{
@@ -993,6 +1028,25 @@ async function postRaniPristup(ime, telefon, delatnost, napomena){
   return false;
 }
 
+const BUBENIK_KEY = 'kisac-bubenik-prijave';
+let bubenikPrijave = [];
+async function loadBubenikPrijave(){
+  try{
+    const all = await binGetAll();
+    bubenikPrijave = (all && all[BUBENIK_KEY]) || [];
+  }catch(e){ bubenikPrijave = []; }
+}
+async function saveBubenikPrijave(){
+  try{ await binUpdateKey(BUBENIK_KEY, bubenikPrijave.slice(-500)); }catch(e){}
+}
+async function postBubenikPrijava(ime, kontakt, tema){
+  const result = await binAppendToArray(BUBENIK_KEY, {
+    id:uid(), ime, kontakt, tema: tema || '', time:Date.now()
+  }, 500);
+  if(result){ bubenikPrijave = result; return true; }
+  return false;
+}
+
 const ZLATNI_KOMSIJA_KEY = 'kisac-zlatni-komsija';
 let zlatniKomsija = [];
 async function loadZlatniKomsija(){
@@ -1084,6 +1138,38 @@ function renderZkAdmin(){
     await saveZlatniKomsija();
     renderZkAdmin();
     renderZlatniKomsija();
+  });
+}
+
+function renderBubenikAdmin(){
+  const list = document.getElementById('bubenikAdminList');
+  if(!list) return;
+  if(bubenikPrijave.length === 0){
+    list.innerHTML = '<div class="empty-msg">Još nema prijava saradnika.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  bubenikPrijave.slice().sort((a,b)=>b.time-a.time).forEach(bk=>{
+    const row = document.createElement('div');
+    row.className = 'admin-item';
+    const timeStr = new Date(bk.time).toLocaleString('sr-Latn-RS');
+    row.innerHTML = `
+      <div class="admin-item-body">
+        <div class="note-cat">${timeStr}</div>
+        <div class="note-q">${escapeHtml(bk.ime)}</div>
+        <div class="note-a" style="font-family:'IBM Plex Mono', monospace; color:var(--sky);">${escapeHtml(bk.kontakt)}</div>
+        ${bk.tema ? `<div class="note-a" style="margin-top:3px; font-style:italic;">${escapeHtml(bk.tema)}</div>` : ''}
+      </div>
+      <div class="admin-item-actions">
+        <button class="btn btn-danger btn-small" data-delbk="${bk.id}">Obriši</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('[data-delbk]').forEach(b=>b.onclick = async ()=>{
+    bubenikPrijave = bubenikPrijave.filter(x=>x.id!==b.dataset.delbk);
+    await saveBubenikPrijave();
+    renderBubenikAdmin();
   });
 }
 
@@ -1536,6 +1622,7 @@ async function unlockAdmin(){
       clickStats = all[CLICK_STATS_KEY] || {};
       raniPristup = all[RANI_PRISTUP_KEY] || [];
       zlatniKomsija = all[ZLATNI_KOMSIJA_KEY] || [];
+      bubenikPrijave = all[BUBENIK_KEY] || [];
     }
     binSetAll(all).catch(()=>{});
   }
@@ -1552,6 +1639,7 @@ async function unlockAdmin(){
     renderStats();
     renderRaniPristup();
     renderZkAdmin();
+    renderBubenikAdmin();
   }else{
     document.getElementById('pinError').textContent = 'Pogrešna šifra, pokušajte ponovo.';
   }
@@ -2333,6 +2421,12 @@ document.getElementById('mojPomocnikOverlay').addEventListener('click', e=>{
   if(e.target.id === 'mojPomocnikOverlay') document.getElementById('mojPomocnikOverlay').classList.add('hidden');
 });
 
+document.getElementById('bubenikBtn').onclick = ()=>{ logClick('bubenik'); document.getElementById('bubenikOverlay').classList.remove('hidden'); };
+document.getElementById('closeBubenikBtn').onclick = ()=> document.getElementById('bubenikOverlay').classList.add('hidden');
+document.getElementById('bubenikOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'bubenikOverlay') document.getElementById('bubenikOverlay').classList.add('hidden');
+});
+
 document.getElementById('closeTelefoniBtn').onclick = closeTelefoniDrawer;
 document.getElementById('telefoniOverlay').addEventListener('click', e=>{
   if(e.target.id === 'telefoniOverlay') closeTelefoniDrawer();
@@ -2417,6 +2511,58 @@ async function submitRaniPristup(){
   }
 }
 document.getElementById('rpBtn').onclick = submitRaniPristup;
+
+const BK_COOLDOWN_MS = 5 * 60 * 1000; // 5 minuta po uredjaju
+function bkCooldownRemaining(){
+  try{
+    const last = parseInt(localStorage.getItem('kisac-last-bk-time') || '0', 10);
+    const remaining = BK_COOLDOWN_MS - (Date.now() - last);
+    return remaining > 0 ? remaining : 0;
+  }catch(e){ return 0; }
+}
+function markBkPosted(){
+  try{ localStorage.setItem('kisac-last-bk-time', String(Date.now())); }catch(e){}
+}
+async function submitBubenikPrijava(){
+  const imeInput = document.getElementById('bkIme');
+  const kontaktInput = document.getElementById('bkKontakt');
+  const temaInput = document.getElementById('bkTema');
+  const status = document.getElementById('bkStatus');
+
+  const ime = imeInput.value.trim();
+  const kontakt = kontaktInput.value.trim();
+  const tema = temaInput.value.trim();
+
+  if(!ime || !kontakt){
+    status.textContent = 'Unesite ime i kontakt.';
+    status.className = 'status-msg err';
+    return;
+  }
+
+  const remaining = bkCooldownRemaining();
+  if(remaining > 0){
+    const mins = Math.ceil(remaining / 60000);
+    status.textContent = `Sačekajte još ${mins} min pre sledeće prijave.`;
+    status.className = 'status-msg err';
+    return;
+  }
+
+  status.textContent = 'Slanje…';
+  status.className = 'status-msg';
+  const ok = await postBubenikPrijava(ime, kontakt, tema);
+  if(ok){
+    markBkPosted();
+    imeInput.value = '';
+    kontaktInput.value = '';
+    temaInput.value = '';
+    status.textContent = 'Hvala! Javićemo vam se kad novine budu spremne.';
+    status.className = 'status-msg';
+  }else{
+    status.textContent = 'Greška, pokušajte ponovo.';
+    status.className = 'status-msg err';
+  }
+}
+document.getElementById('bkBtn').onclick = submitBubenikPrijava;
 
 document.getElementById('pinSubmit').onclick = unlockAdmin;
 document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') unlockAdmin(); });
