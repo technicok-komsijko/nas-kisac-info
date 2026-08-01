@@ -441,7 +441,7 @@
       <button id="rodjeniBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">👶 Rođeni</button>
       <button id="preminuliBtn" class="btn btn-ghost" style="border-color:var(--soil-soft); color:var(--soil-soft);">🕊️ Preminuli</button>
       <button id="mojPomocnikBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">🤝 Moj Pomoćnik</button>
-      <button id="bubenikBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">🥁 Kysácski bubeník</button>
+      <button id="bubenikBtn" class="btn btn-ghost" style="border-color:var(--brick); color:var(--brick);">🥁 Kysáčsky bubeník</button>
     </div>
 
     <div class="ask-card">
@@ -538,11 +538,11 @@
     <div id="bubenikOverlay" class="oglasi-overlay hidden">
       <div class="oglasi-drawer">
         <div class="oglasi-drawer-head">
-          <h3>🥁 Kysácski bubeník</h3>
+          <h3>🥁 Kysáčsky bubeník</h3>
           <button id="closeBubenikBtn" class="btn btn-ghost btn-small">Zatvori</button>
         </div>
         <div style="font-size:0.92rem; line-height:1.6;">
-          <p style="margin:0 0 12px;"><strong>Kysácski bubeník / Kisački dobošar</strong> — planirane digitalne novine za Kisač. Mesto gde ćemo pratiti vesti, dešavanja i priče iz sela, na srpskom i slovačkom jeziku.</p>
+          <p style="margin:0 0 12px;"><strong>Kysáčsky bubeník / Kisački dobošar</strong> — planirane digitalne novine za Kisač. Mesto gde ćemo pratiti vesti, dešavanja i priče iz sela, na srpskom i slovačkom jeziku.</p>
           <p style="margin:0 0 12px;">Ako želite da pišete za novine — bilo da podelite tradicionalni recept, vesti iz svog udruženja, priču iz sela, ili bilo šta drugo što vredi ispričati — javite se!</p>
           <p style="margin:0 0 16px; color:var(--soil-soft); font-size:0.85rem;">Projekat je trenutno u ranoj fazi razvoja. Kad krene, ovde ćete naći link.</p>
           <button class="btn btn-ghost btn-small" id="shareBubenikBtn">📤 Podeli</button>
@@ -782,7 +782,7 @@
       <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Ovi su trenutno javno vidljivi na sajtu, u odeljku "Naše Zlatne Komšije". Ovde ih možeš ukloniti kad zatreba.</p>
       <div id="zkAdminList"></div>
 
-      <h2 style="font-size:1.05rem; margin:26px 0 10px;">🥁 Prijave saradnika — Kysácski bubeník</h2>
+      <h2 style="font-size:1.05rem; margin:26px 0 10px;">🥁 Prijave saradnika — Kysáčsky bubeník</h2>
       <p style="color:var(--soil-soft); font-size:0.82rem; margin:-4px 0 12px;">Meštani zainteresovani da pišu za novine. Ovo je čekaonica koju samo ti vidiš.</p>
       <div id="bubenikAdminList"></div>
 
@@ -2425,7 +2425,7 @@ document.getElementById('mojPomocnikOverlay').addEventListener('click', e=>{
 
 document.getElementById('bubenikBtn').onclick = ()=>{ logClick('bubenik'); document.getElementById('bubenikOverlay').classList.remove('hidden'); };
 document.getElementById('closeBubenikBtn').onclick = ()=> document.getElementById('bubenikOverlay').classList.add('hidden');
-document.getElementById('shareBubenikBtn').onclick = ()=> shareInfo('Kysácski bubeník / Kisački dobošar', 'Planirane digitalne novine za Kisač — mesto gde ćemo pratiti vesti, dešavanja i priče iz sela, na srpskom i slovačkom jeziku.\n\nAko želite da pišete za novine — recepti, vesti iz udruženja, priče iz sela i drugo — javite se na sajtu!\n\nProjekat je trenutno u ranoj fazi razvoja.', 'https://technicok-komsijko.github.io/nas-kisac-info/bubenik.html');
+document.getElementById('shareBubenikBtn').onclick = ()=> shareInfo('Kysáčsky bubeník / Kisački dobošar', 'Planirane digitalne novine za Kisač — mesto gde ćemo pratiti vesti, dešavanja i priče iz sela, na srpskom i slovačkom jeziku.\n\nAko želite da pišete za novine — recepti, vesti iz udruženja, priče iz sela i drugo — javite se na sajtu!\n\nProjekat je trenutno u ranoj fazi razvoja.', 'https://technicok-komsijko.github.io/nas-kisac-info/bubenik.html');
 document.getElementById('bubenikOverlay').addEventListener('click', e=>{
   if(e.target.id === 'bubenikOverlay') document.getElementById('bubenikOverlay').classList.add('hidden');
 });
