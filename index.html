@@ -1476,8 +1476,9 @@ function isExpired(item){
   if(!item.validUntil) return false;
   return item.validUntil < todayStr();
 }
-function shareInfo(title, text){
-  const fullText = `${title}\n\n${text}\n\nIzvor: Naš Kisač info\nhttps://technicok-komsijko.github.io/nas-kisac-info/`;
+function shareInfo(title, text, url){
+  const shareUrl = url || 'https://technicok-komsijko.github.io/nas-kisac-info/';
+  const fullText = `${title}\n\n${text}\n\nIzvor: Naš Kisač info\n${shareUrl}`;
   if(navigator.share){
     navigator.share({ title: title, text: fullText }).catch(()=>{});
   }else{
@@ -2424,7 +2425,7 @@ document.getElementById('mojPomocnikOverlay').addEventListener('click', e=>{
 
 document.getElementById('bubenikBtn').onclick = ()=>{ logClick('bubenik'); document.getElementById('bubenikOverlay').classList.remove('hidden'); };
 document.getElementById('closeBubenikBtn').onclick = ()=> document.getElementById('bubenikOverlay').classList.add('hidden');
-document.getElementById('shareBubenikBtn').onclick = ()=> shareInfo('Kysácski bubeník / Kisački dobošar', 'Planirane digitalne novine za Kisač — mesto gde ćemo pratiti vesti, dešavanja i priče iz sela, na srpskom i slovačkom jeziku.\n\nAko želite da pišete za novine — recepti, vesti iz udruženja, priče iz sela i drugo — javite se na sajtu!\n\nProjekat je trenutno u ranoj fazi razvoja.');
+document.getElementById('shareBubenikBtn').onclick = ()=> shareInfo('Kysácski bubeník / Kisački dobošar', 'Planirane digitalne novine za Kisač — mesto gde ćemo pratiti vesti, dešavanja i priče iz sela, na srpskom i slovačkom jeziku.\n\nAko želite da pišete za novine — recepti, vesti iz udruženja, priče iz sela i drugo — javite se na sajtu!\n\nProjekat je trenutno u ranoj fazi razvoja.', 'https://technicok-komsijko.github.io/nas-kisac-info/bubenik.html');
 document.getElementById('bubenikOverlay').addEventListener('click', e=>{
   if(e.target.id === 'bubenikOverlay') document.getElementById('bubenikOverlay').classList.add('hidden');
 });
