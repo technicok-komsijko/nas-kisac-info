@@ -545,6 +545,7 @@
           <p style="margin:0 0 12px;"><strong>Kysácski bubeník / Kisački dobošar</strong> — planirane digitalne novine za Kisač. Mesto gde ćemo pratiti vesti, dešavanja i priče iz sela, na srpskom i slovačkom jeziku.</p>
           <p style="margin:0 0 12px;">Ako želite da pišete za novine — bilo da podelite tradicionalni recept, vesti iz svog udruženja, priču iz sela, ili bilo šta drugo što vredi ispričati — javite se!</p>
           <p style="margin:0 0 16px; color:var(--soil-soft); font-size:0.85rem;">Projekat je trenutno u ranoj fazi razvoja. Kad krene, ovde ćete naći link.</p>
+          <button class="btn btn-ghost btn-small" id="shareBubenikBtn">📤 Podeli</button>
         </div>
         <div class="rp-card" style="margin-top:0;">
           <h3 style="font-size:0.98rem;">✍️ Prijavite se da pišete</h3>
@@ -2423,6 +2424,7 @@ document.getElementById('mojPomocnikOverlay').addEventListener('click', e=>{
 
 document.getElementById('bubenikBtn').onclick = ()=>{ logClick('bubenik'); document.getElementById('bubenikOverlay').classList.remove('hidden'); };
 document.getElementById('closeBubenikBtn').onclick = ()=> document.getElementById('bubenikOverlay').classList.add('hidden');
+document.getElementById('shareBubenikBtn').onclick = ()=> shareInfo('Kysácski bubeník / Kisački dobošar', 'Planirane digitalne novine za Kisač — mesto gde ćemo pratiti vesti, dešavanja i priče iz sela, na srpskom i slovačkom jeziku.\n\nAko želite da pišete za novine — recepti, vesti iz udruženja, priče iz sela i drugo — javite se na sajtu!\n\nProjekat je trenutno u ranoj fazi razvoja.');
 document.getElementById('bubenikOverlay').addEventListener('click', e=>{
   if(e.target.id === 'bubenikOverlay') document.getElementById('bubenikOverlay').classList.add('hidden');
 });
