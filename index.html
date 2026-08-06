@@ -438,6 +438,7 @@
       <button id="hitnoBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">📢 Trenutne informacije</button>
       <button id="telefoniBtn" class="btn btn-ghost" style="border-color:var(--sky); color:var(--sky);">📞 Važni telefoni</button>
       <button id="dogadjajiBtn" class="btn btn-ghost" style="border-color:var(--leaf); color:var(--leaf);">🎭 Kulturni događaji</button>
+      <button id="sportBtn" class="btn btn-ghost" style="border-color:var(--sky); color:var(--sky);">⚽ Sport</button>
       <button id="rodjeniBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">👶 Rođeni</button>
       <button id="preminuliBtn" class="btn btn-ghost" style="border-color:var(--soil-soft); color:var(--soil-soft);">🕊️ Preminuli</button>
       <button id="mojPomocnikBtn" class="btn btn-ghost" style="border-color:var(--wheat-deep); color:var(--wheat-deep);">🤝 Moj Pomoćnik</button>
@@ -485,6 +486,16 @@
           <button id="closeDogadjajiBtn" class="btn btn-ghost btn-small">Zatvori</button>
         </div>
         <div id="dogadjajiList"></div>
+      </div>
+    </div>
+
+    <div id="sportOverlay" class="oglasi-overlay hidden">
+      <div class="oglasi-drawer">
+        <div class="oglasi-drawer-head">
+          <h3>⚽ Sport</h3>
+          <button id="closeSportBtn" class="btn btn-ghost btn-small">Zatvori</button>
+        </div>
+        <div id="sportList"></div>
       </div>
     </div>
 
@@ -737,6 +748,13 @@
 
       <div class="admin-form">
         <h2 id="dogadjajFormTitle">Dodaj kulturni događaj</h2>
+        <div class="field">
+          <label>Vrsta događaja</label>
+          <div style="display:flex; gap:14px;">
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="radio" name="dTip" value="kulturni" checked> 🎭 Kulturni</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:normal;"><input type="radio" name="dTip" value="sport"> ⚽ Sport</label>
+          </div>
+        </div>
         <div class="field">
           <label for="dNaziv">Naziv događaja</label>
           <input type="text" id="dNaziv" placeholder="npr. Koncert klape na trgu">
@@ -1269,9 +1287,12 @@ function eventLabel(days){
   if(days === 1) return 'Sutra';
   return `za ${days} dana`;
 }
-function upcomingDogadjaji(){
+function upcomingDogadjaji(tip){
   const today = todayStr();
-  return dogadjaji.filter(d => d.datum >= today).sort((a,b)=> a.datum.localeCompare(b.datum));
+  return dogadjaji
+    .filter(d => d.datum >= today)
+    .filter(d => (tip ? (d.tip || 'kulturni') === tip : true))
+    .sort((a,b)=> a.datum.localeCompare(b.datum));
 }
 
 const OGLASI_KEY = 'kisac-oglasi';
@@ -1537,10 +1558,20 @@ function makeNote(item, alt){
   shareBtn.textContent = '📤 Podeli';
   shareBtn.onclick = (e)=>{
     e.stopPropagation();
-    const isPreminuli = getCats(item).includes('Preminuli');
-    const shareUrl = isPreminuli
-      ? 'https://technicok-komsijko.github.io/nas-kisac-info/preminuli.html'
-      : `https://technicok-komsijko.github.io/nas-kisac-info/?item=${encodeURIComponent(item.id)}&type=faq`;
+    // Mapa: kategorija -> posebna "bridge" stranica sa svojom slikom za pregled linka.
+    // Redosled je bitan ako stavka ima vise kategorija — prva poklapajuca pobedjuje.
+    const CATEGORY_SHARE_PAGES = {
+      'Preminuli': 'preminuli.html',
+      'Rođeni': 'rodjeni.html',
+      'Trenutne informacije': 'trenutne.html',
+      'Planirani radovi i isključenja': 'planirani-radovi.html',
+      'Važni telefoni': 'vazni-telefoni.html',
+    };
+    const cats = getCats(item);
+    let page = null;
+    for(const cat of cats){ if(CATEGORY_SHARE_PAGES[cat]){ page = CATEGORY_SHARE_PAGES[cat]; break; } }
+    const base = 'https://technicok-komsijko.github.io/nas-kisac-info/' + (page || '');
+    const shareUrl = `${base}?item=${encodeURIComponent(item.id)}&type=faq`;
     shareInfo(item.question, item.answer, shareUrl);
   };
   note.appendChild(shareBtn);
@@ -1865,16 +1896,19 @@ function resetDogadjajForm(){
   document.getElementById('dVreme').value = '';
   document.getElementById('dMesto').value = '';
   document.getElementById('dOpis').value = '';
+  document.querySelectorAll('input[name="dTip"]').forEach(r=>{ r.checked = (r.value === 'kulturni'); });
   document.getElementById('cancelDogadjajEditBtn').classList.add('hidden');
 }
 function fillDogadjajFormForEdit(d){
   editingDogadjajId = d.id;
-  document.getElementById('dogadjajFormTitle').textContent = 'Izmeni kulturni događaj';
+  document.getElementById('dogadjajFormTitle').textContent = 'Izmeni događaj';
   document.getElementById('dNaziv').value = d.naziv;
   document.getElementById('dDatum').value = d.datum;
   document.getElementById('dVreme').value = d.vreme || '';
   document.getElementById('dMesto').value = d.mesto || '';
   document.getElementById('dOpis').value = d.opis || '';
+  const tip = d.tip || 'kulturni';
+  document.querySelectorAll('input[name="dTip"]').forEach(r=>{ r.checked = (r.value === tip); });
   document.getElementById('cancelDogadjajEditBtn').classList.remove('hidden');
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -1884,6 +1918,8 @@ async function saveDogadjaj(){
   const vreme = document.getElementById('dVreme').value.trim();
   const mesto = document.getElementById('dMesto').value.trim();
   const opis = document.getElementById('dOpis').value.trim();
+  const tipEl = document.querySelector('input[name="dTip"]:checked');
+  const tip = tipEl ? tipEl.value : 'kulturni';
   const statusEl = document.getElementById('dogadjajStatus');
 
   if(!naziv || !datum){
@@ -1893,9 +1929,9 @@ async function saveDogadjaj(){
   }
   if(editingDogadjajId){
     const idx = dogadjaji.findIndex(d=>d.id===editingDogadjajId);
-    if(idx>-1) dogadjaji[idx] = {...dogadjaji[idx], naziv, datum, vreme, mesto, opis};
+    if(idx>-1) dogadjaji[idx] = {...dogadjaji[idx], naziv, datum, vreme, mesto, opis, tip};
   }else{
-    dogadjaji.push({id:uid(), naziv, datum, vreme, mesto, opis});
+    dogadjaji.push({id:uid(), naziv, datum, vreme, mesto, opis, tip});
   }
   statusEl.textContent = 'Čuvanje…';
   statusEl.className = 'status-msg';
@@ -1926,9 +1962,10 @@ function renderAdminDogadjaji(){
     const row = document.createElement('div');
     row.className = 'admin-item';
     const past = d.datum < todayStr();
+    const tipLabel = (d.tip === 'sport') ? '⚽ Sport' : '🎭 Kulturni';
     row.innerHTML = `
       <div class="admin-item-body">
-        <div class="note-cat" style="${past ? 'color:var(--soil-soft);' : 'color:var(--leaf);'}">${d.datum}${d.vreme ? ', '+escapeHtml(d.vreme) : ''}${past ? ' (prošlo)' : ''}</div>
+        <div class="note-cat" style="${past ? 'color:var(--soil-soft);' : 'color:var(--leaf);'}">${tipLabel} · ${d.datum}${d.vreme ? ', '+escapeHtml(d.vreme) : ''}${past ? ' (prošlo)' : ''}</div>
         <div class="note-q">${escapeHtml(d.naziv)}</div>
         ${d.mesto ? `<div class="note-a">📍 ${escapeHtml(d.mesto)}</div>` : ''}
       </div>
@@ -2072,7 +2109,7 @@ function makeVestNote(v, alt){
   shareBtn.className = 'btn btn-ghost btn-small';
   shareBtn.style.marginTop = '8px';
   shareBtn.textContent = '📤 Podeli';
-  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo('Trenutna informacija', v.text, `https://technicok-komsijko.github.io/nas-kisac-info/?item=${encodeURIComponent(v.id)}&type=vest`); };
+  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo('Trenutna informacija', v.text, `https://technicok-komsijko.github.io/nas-kisac-info/trenutne.html?item=${encodeURIComponent(v.id)}&type=vest`); };
   note.appendChild(shareBtn);
   return note;
 }
@@ -2182,12 +2219,17 @@ function makeEventCard(d, alt){
   shareBtn.className = 'btn btn-ghost btn-small';
   shareBtn.style.marginTop = '8px';
   shareBtn.textContent = '📤 Podeli';
-  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo(d.naziv, `${dateStr}${vremeStr}${d.mesto ? ' — '+d.mesto : ''}${d.opis ? '\n'+d.opis : ''}`, `https://technicok-komsijko.github.io/nas-kisac-info/?item=${encodeURIComponent(d.id)}&type=dogadjaj`); };
+  shareBtn.onclick = (e)=>{
+    e.stopPropagation();
+    const page = (d.tip === 'sport') ? 'sport.html' : 'kulturni-dogadjaji.html';
+    const shareUrl = `https://technicok-komsijko.github.io/nas-kisac-info/${page}?item=${encodeURIComponent(d.id)}&type=dogadjaj`;
+    shareInfo(d.naziv, `${dateStr}${vremeStr}${d.mesto ? ' — '+d.mesto : ''}${d.opis ? '\n'+d.opis : ''}`, shareUrl);
+  };
   note.appendChild(shareBtn);
   return note;
 }
 function openDogadjajiDrawer(){
-  const items = upcomingDogadjaji();
+  const items = upcomingDogadjaji('kulturni');
   const el = document.getElementById('dogadjajiList');
   if(items.length===0){
     el.innerHTML = '<div class="empty-msg">Trenutno nema najavljenih kulturnih događaja.</div>';
@@ -2199,6 +2241,20 @@ function openDogadjajiDrawer(){
 }
 function closeDogadjajiDrawer(){
   document.getElementById('dogadjajiOverlay').classList.add('hidden');
+}
+function openSportDrawer(){
+  const items = upcomingDogadjaji('sport');
+  const el = document.getElementById('sportList');
+  if(items.length===0){
+    el.innerHTML = '<div class="empty-msg">Trenutno nema najavljenih sportskih dešavanja.</div>';
+  }else{
+    el.innerHTML = '';
+    items.forEach((d,idx)=> el.appendChild(makeEventCard(d, idx%2===1)) );
+  }
+  document.getElementById('sportOverlay').classList.remove('hidden');
+}
+function closeSportDrawer(){
+  document.getElementById('sportOverlay').classList.add('hidden');
 }
 function renderAccessLog(){
   const el = document.getElementById('accessLogList');
@@ -2446,6 +2502,11 @@ document.getElementById('dogadjajiBtn').onclick = ()=>{ logClick('dogadjaji'); o
 document.getElementById('closeDogadjajiBtn').onclick = closeDogadjajiDrawer;
 document.getElementById('dogadjajiOverlay').addEventListener('click', e=>{
   if(e.target.id === 'dogadjajiOverlay') closeDogadjajiDrawer();
+});
+document.getElementById('sportBtn').onclick = ()=>{ logClick('sport'); openSportDrawer(); };
+document.getElementById('closeSportBtn').onclick = closeSportDrawer;
+document.getElementById('sportOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'sportOverlay') closeSportDrawer();
 });
 document.getElementById('saveDogadjajBtn').onclick = saveDogadjaj;
 document.getElementById('cancelDogadjajEditBtn').onclick = resetDogadjajForm;
