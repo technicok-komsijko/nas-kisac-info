@@ -1535,7 +1535,14 @@ function makeNote(item, alt){
   shareBtn.style.marginTop = '8px';
   shareBtn.style.marginLeft = item.phone ? '8px' : '0';
   shareBtn.textContent = '📤 Podeli';
-  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo(item.question, item.answer); };
+  shareBtn.onclick = (e)=>{
+    e.stopPropagation();
+    const isPreminuli = getCats(item).includes('Preminuli');
+    const shareUrl = isPreminuli
+      ? 'https://technicok-komsijko.github.io/nas-kisac-info/preminuli.html'
+      : `https://technicok-komsijko.github.io/nas-kisac-info/?item=${encodeURIComponent(item.id)}&type=faq`;
+    shareInfo(item.question, item.answer, shareUrl);
+  };
   note.appendChild(shareBtn);
   return note;
 }
@@ -2065,7 +2072,7 @@ function makeVestNote(v, alt){
   shareBtn.className = 'btn btn-ghost btn-small';
   shareBtn.style.marginTop = '8px';
   shareBtn.textContent = '📤 Podeli';
-  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo('Trenutna informacija', v.text); };
+  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo('Trenutna informacija', v.text, `https://technicok-komsijko.github.io/nas-kisac-info/?item=${encodeURIComponent(v.id)}&type=vest`); };
   note.appendChild(shareBtn);
   return note;
 }
@@ -2175,7 +2182,7 @@ function makeEventCard(d, alt){
   shareBtn.className = 'btn btn-ghost btn-small';
   shareBtn.style.marginTop = '8px';
   shareBtn.textContent = '📤 Podeli';
-  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo(d.naziv, `${dateStr}${vremeStr}${d.mesto ? ' — '+d.mesto : ''}${d.opis ? '\n'+d.opis : ''}`); };
+  shareBtn.onclick = (e)=>{ e.stopPropagation(); shareInfo(d.naziv, `${dateStr}${vremeStr}${d.mesto ? ' — '+d.mesto : ''}${d.opis ? '\n'+d.opis : ''}`, `https://technicok-komsijko.github.io/nas-kisac-info/?item=${encodeURIComponent(d.id)}&type=dogadjaj`); };
   note.appendChild(shareBtn);
   return note;
 }
@@ -2577,6 +2584,35 @@ document.getElementById('saveEntryBtn').onclick = saveEntry;
 document.getElementById('cancelEditBtn').onclick = resetForm;
 
 // ---------- init ----------
+function openSharedItemFromURL(){
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('item');
+  const type = params.get('type');
+  if(!id || !type) return;
+
+  let node = null;
+  if(type === 'faq'){
+    const found = faqItems.find(i=>i.id===id);
+    if(found) node = makeNote(found, false);
+  }else if(type === 'vest'){
+    const found = trenutneVesti.find(v=>v.id===id);
+    if(found) node = makeVestNote(found, false);
+  }else if(type === 'dogadjaj'){
+    const found = dogadjaji.find(d=>d.id===id);
+    if(found) node = makeEventCard(found, false);
+  }
+  if(!node) return;
+
+  const wrap = document.getElementById('searchResultsWrap');
+  const board = document.getElementById('boardArea');
+  const statusLabel = document.getElementById('boardStatusLabel');
+  wrap.classList.remove('hidden');
+  if(statusLabel) statusLabel.textContent = 'deljena informacija';
+  board.innerHTML = '';
+  board.appendChild(node);
+  setTimeout(()=> wrap.scrollIntoView({behavior:'smooth', block:'start'}), 250);
+}
+
 (async function init(){
   const all = await binGetAll();
   if(all !== null){
@@ -2594,6 +2630,7 @@ document.getElementById('cancelEditBtn').onclick = resetForm;
   updateBadges();
   renderTicker();
   renderZlatniKomsija();
+  openSharedItemFromURL();
   setInterval(pruneOglasi, 60000);
   // Belezenje posete se radi odvojeno, sa sopstvenim svezim citanjem baze
   // neposredno pre upisa (umesto ponovne upotrebe podataka ucitanih gore) —
