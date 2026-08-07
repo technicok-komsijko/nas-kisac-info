@@ -2697,7 +2697,17 @@ function openSharedItemFromURL(){
   // neposredno pre upisa (umesto ponovne upotrebe podataka ucitanih gore) —
   // ovim se smanjuje vremenski prozor u kom zastareo tab moze da prepise
   // tudje medjuvremene izmene (npr. tudje posete, unose, prijave).
-  logVisit();
+  //
+  // PRIVREMENA MERA (dok se statistika ne odvoji u posebnu bazu): loguje se
+  // samo priblizno svaka druga poseta (slucajni uzorak ~50%), umesto svaka
+  // pojedinacna. Ovo drasticno smanjuje broj punih upisa cele baze koje
+  // izaziva sam brojac poseta — najucestaliju operaciju na sajtu — i time
+  // smanjuje rizik da upis posete "pregazi" istovremeni admin unos (npr.
+  // dodavanje dogadjaja). Brojka poseta ostaje PRIBLIZNA (donja granica),
+  // sto je vec ustanovljena praksa za ovaj alat.
+  if(Math.random() < 0.5){
+    logVisit();
+  }
 })();
 </script>
 </body>
