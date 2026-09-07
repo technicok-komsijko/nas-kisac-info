@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Obaveštenje — Naš Kisač info</title>
+<meta property="og:title" content="Obaveštenje — Naš Kisač info">
+<meta property="og:description" content="Obaveštenja za meštane Kisača.">
+<meta property="og:image" content="https://technicok-komsijko.github.io/nas-kisac-info/trenutne-share.jpg">
+<meta property="og:url" content="https://technicok-komsijko.github.io/nas-kisac-info/obavestenje.html">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Obaveštenje — Naš Kisač info">
+<meta name="twitter:description" content="Obaveštenja za meštane Kisača.">
+<meta name="twitter:image" content="https://technicok-komsijko.github.io/nas-kisac-info/trenutne-share.jpg">
+<style>
+  body{margin:0;background:#F6F1E4;color:#4A3728;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+  p{font-size:0.95rem;color:#7A6653;}
+</style>
+</head>
+<body>
+  <p>Preusmeravanje...</p>
+  <script>
+    // NAPOMENA: og:url je namerno vracen (staticna adresa, bez query parametara)
+    // da bi Facebook ispravno prepoznao ovo kao klikabilan spoljni link (ranije je
+    // bez og:url ponekad umesto otvaranja linka nudio "Posalji poruku"/chat).
+    // Cena: klik sa FACEBOOK preview kartice ce voditi na OVU opstu stranicu
+    // (koja i dalje automatski prosledjuje dalje), a ne direktno na tacnu
+    // deljenu stavku — ta preciznost i dalje radi normalno na Viberu/Instagramu,
+    // koji ne primoravaju koriscenje og:url kao mete klika.
+    var params = window.location.search;
+    window.location.replace('https://technicok-komsijko.github.io/nas-kisac-info/' + params);
+  </script>
+</body>
+</html>
